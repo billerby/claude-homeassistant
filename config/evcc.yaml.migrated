@@ -1,0 +1,80 @@
+## minimal configuration example
+
+# trial token, valid until 2025-02-22
+sponsortoken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJldmNjLmlvIiwic3ViIjoidHJpYWwiLCJleHAiOjE3NDAyMTg0MDAsImlhdCI6MTczODkyMjQwMCwic3BlIjp0cnVlLCJzcmMiOiJtYSJ9.4wEyfIA44LM70Nt3cf1YHZb5aj3ADZcFSyImjFHJF0U
+
+
+site:
+  title: Home # display name for UI
+  meters:
+    grid: my_grid
+    pv:
+      - my_pv
+    battery:
+      - my_battery
+      
+
+# define your loadpoints according your needs
+# see https://docs.evcc.io/en/docs/reference/configuration/loadpoints
+loadpoints:
+  - title: Parkeringen # display name for UI
+    charger: my_charger # charger
+
+# meter definitions
+# name can be freely chosen and is used as reference when assigning meters to site and loadpoints
+# for documentation see https://docs.evcc.io/docs/devices/meters
+meters:
+  # replace with your real grid meter
+  - name: my_grid
+    type: template
+    template: huawei-sun2000
+    usage: grid
+    
+    modbus: rs485tcpip
+    id: 1
+    #host: localhost
+    #port: 503
+  # replace with your real pv system
+  - name: my_pv
+    type: template
+    template: huawei-sun2000
+    usage: pv
+    
+    modbus: rs485tcpip
+    id: 1
+    #host: localhost
+    #port: 503
+  # replace with your real battery
+  - name: my_battery
+    type: template
+    template: huawei-sun2000
+    usage: battery
+    
+    modbus: rs485tcpip
+    id: 1
+    #host: localhost
+    #port: 503
+    maxchargepower: 4000 # Power limit for grid charging. (optional)
+    capacity: 15 # Battery capacity in kWh (optional)
+    
+# see https://docs.evcc.io/docs/devices/chargers
+chargers:
+  - name: my_charger
+    type: template
+    template: easee
+    user: billerby@gmail.com
+    password: b!Zn8*mbJ73tJy
+    charger: EH919290
+    timeout: 20s
+    authorize: true
+
+
+
+# enter your real grid tariff and feed-in price
+# see https://docs.evcc.io/docs/tariffs
+tariffs:
+  grid:
+    type: template
+    template: tibber
+    token: wxJF9oUUuI1BZ8GZGVwBvU-34GbUoyjXVNmITmvrsTk
+    homeid: c62ef42e-7d42-4a7b-a828-d03161d9d453 # Only required if you have multiple homes in your Tibber account. (optional)

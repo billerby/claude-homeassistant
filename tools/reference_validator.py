@@ -104,6 +104,9 @@ class ReferenceValidator:
         self._devices: Optional[Dict[str, Any]] = None
         self._areas: Optional[Dict[str, Any]] = None
 
+        # Cache for YAML-defined entities
+        self._yaml_entities: Optional[Set[str]] = None
+
     def load_entity_registry(self) -> Dict[str, Any]:
         """Load and cache entity registry."""
         if self._entities is None:
@@ -166,6 +169,167 @@ class ReferenceValidator:
                 return {}
 
         return self._areas
+
+    def load_yaml_entities(self) -> Set[str]:
+        """Load entities defined in YAML configuration files."""
+        if self._yaml_entities is not None:
+            return self._yaml_entities
+
+        yaml_entities = set()
+
+        # Parse configuration.yaml and extract YAML-defined entities
+        for yaml_file in self.get_yaml_files():
+            try:
+                with open(yaml_file, "r", encoding="utf-8") as f:
+                    data = yaml.load(f, Loader=HAYamlLoader)
+
+                if data is None:
+                    continue
+
+                # Extract template sensors
+                yaml_entities.update(self._extract_yaml_entities_from_config(data))
+
+            except Exception:
+                # Silently skip files that can't be parsed
+                pass
+
+        # Extract entities created by Python scripts
+        yaml_entities.update(self._extract_python_script_entities())
+
+        self._yaml_entities = yaml_entities
+        return yaml_entities
+
+    def _extract_python_script_entities(self) -> Set[str]:
+        """Extract entities created by Python scripts."""
+        entities = set()
+        python_scripts_dir = self.config_dir / "python_scripts"
+
+        if not python_scripts_dir.exists():
+            return entities
+
+        # Scan all .py files for hass.states.set() calls
+        for script_file in python_scripts_dir.glob("*.py"):
+            try:
+                with open(script_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                # Look for hass.states.set('entity.id', ...) patterns
+                import re
+                patterns = [
+                    r"hass\.states\.set\(['\"]([a-z_]+\.[a-z0-9_]+)['\"]",
+                    r'hass\.states\.set\("([a-z_]+\.[a-z0-9_]+)"',
+                ]
+
+                for pattern in patterns:
+                    matches = re.findall(pattern, content)
+                    entities.update(matches)
+
+            except Exception:
+                # Skip files that can't be read
+                pass
+
+        return entities
+
+    def _extract_yaml_entities_from_config(self, data: Any, domain: str = "") -> Set[str]:
+        """Extract entity definitions from YAML config data."""
+        entities = set()
+
+        if not isinstance(data, dict):
+            return entities
+
+        # Handle different configuration styles
+        for key, value in data.items():
+            # Handle modern template: style as a list (e.g., template: - sensor: - binary_sensor:)
+            if key == "template" and isinstance(value, list):
+                for template_item in value:
+                    if isinstance(template_item, dict):
+                        for domain_key, domain_entities in template_item.items():
+                            if domain_key in ["sensor", "binary_sensor"] and isinstance(domain_entities, list):
+                                for entity_def in domain_entities:
+                                    if isinstance(entity_def, dict) and "name" in entity_def:
+                                        entity_name = entity_def["name"].lower().replace(" ", "_").replace('"', '').replace("-", "_")
+                                        entities.add(f"{domain_key}.{entity_name}")
+
+            # Platform-based sensors (legacy style)
+            elif key in ["sensor", "binary_sensor", "template"] and isinstance(value, (list, dict)):
+                current_domain = key if key != "template" else ""
+
+                if isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict):
+                            # Check for "name" field (direct entity definition)
+                            if "name" in item:
+                                entity_name = item["name"].lower().replace(" ", "_").replace('"', '').replace("-", "_")
+                                entities.add(f"{current_domain or key}.{entity_name}")
+
+                            # Check for platform key
+                            platform = item.get("platform")
+                            if platform == "template":
+                                # Extract sensors from template platform
+                                entities.update(self._extract_template_entities(item, current_domain or "sensor"))
+                            # Check for direct entity definitions in sensors list
+                            entities.update(self._extract_template_entities(item, current_domain or key))
+
+                elif isinstance(value, dict):
+                    # Modern template style or direct sensor definitions
+                    if key == "template":
+                        # New template: style with sensor/binary_sensor subsections
+                        for template_key, template_value in value.items():
+                            if template_key in ["sensor", "binary_sensor"] and isinstance(template_value, list):
+                                for entity_def in template_value:
+                                    if isinstance(entity_def, dict) and "name" in entity_def:
+                                        entity_name = entity_def["name"].lower().replace(" ", "_").replace('"', '').replace("-", "_")
+                                        entities.add(f"{template_key}.{entity_name}")
+                    else:
+                        # Legacy sensor: or binary_sensor: with direct entity definitions
+                        entities.update(self._extract_template_entities(value, key))
+
+            # Handle integration-based entities (mqtt, rest, etc.) with sensor/binary_sensor subsections
+            elif key in ["mqtt", "rest", "command_line", "sql", "scrape"] and isinstance(value, dict):
+                # These integrations can have sensor/binary_sensor subsections
+                for sub_key, sub_value in value.items():
+                    if sub_key in ["sensor", "binary_sensor"] and isinstance(sub_value, list):
+                        for entity_def in sub_value:
+                            if isinstance(entity_def, dict) and "name" in entity_def:
+                                entity_name = entity_def["name"].lower().replace(" ", "_").replace('"', '').replace("-", "_")
+                                entities.add(f"{sub_key}.{entity_name}")
+
+            # Handle input_* helpers
+            elif key in ["input_number", "input_boolean", "input_text", "input_select", "input_datetime"] and isinstance(value, dict):
+                for entity_name in value.keys():
+                    entities.add(f"{key}.{entity_name}")
+
+        return entities
+
+    def _extract_template_entities(self, config: Any, domain: str) -> Set[str]:
+        """Extract entity IDs from template sensor configuration."""
+        entities = set()
+
+        if not isinstance(config, dict):
+            return entities
+
+        # Look for sensors defined directly in the config
+        for key, value in config.items():
+            if isinstance(value, dict):
+                # Check for legacy "sensors:" or "binary_sensors:" subsection in platform: template
+                if key in ["sensors", "binary_sensors"]:
+                    # Determine the domain from the key
+                    entity_domain = "binary_sensor" if key == "binary_sensors" else domain
+                    # Extract entities from the subsection
+                    for entity_name, entity_config in value.items():
+                        if isinstance(entity_config, dict):
+                            entity_id = f"{entity_domain}.{entity_name}"
+                            entities.add(entity_id)
+                # Check if this looks like an entity definition
+                elif "friendly_name" in value or "value_template" in value or "state" in value:
+                    # This is an entity definition, key is the entity name
+                    entity_id = f"{domain}.{key}"
+                    entities.add(entity_id)
+                elif key in ["sensor", "binary_sensor"]:
+                    # Nested sensor definitions
+                    entities.update(self._extract_template_entities(value, key))
+
+        return entities
 
     def is_uuid_format(self, value: str) -> bool:
         """Check if a string matches UUID format (32 hex characters)."""
@@ -368,6 +532,9 @@ class ReferenceValidator:
 
         all_valid = True
 
+        # Load YAML-defined entities
+        yaml_entities = self.load_yaml_entities()
+
         # Validate entity references (normal entity_id format)
         for entity_id in entity_refs:
             # Skip UUID-format entity IDs, they're handled separately
@@ -385,6 +552,12 @@ class ReferenceValidator:
                 if entity_id in disabled_entities:
                     self.warnings.append(
                         f"{file_path}: References disabled entity " f"'{entity_id}'"
+                    )
+                elif entity_id in yaml_entities:
+                    # Entity is defined in YAML config, not an error
+                    self.warnings.append(
+                        f"{file_path}: References YAML-defined entity '{entity_id}' "
+                        f"(not in entity registry)"
                     )
                 else:
                     self.errors.append(f"{file_path}: Unknown entity '{entity_id}'")

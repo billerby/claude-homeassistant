@@ -1,62 +1,320 @@
-# Example Home Assistant Configuration File
-# This is a minimal example configuration for demonstration purposes
 
-# Basic Home Assistant configuration
-homeassistant:
-  name: Home
-  latitude: 37.7749
-  longitude: -122.4194
-  elevation: 0
-  unit_system: metric
-  currency: USD
-  country: US
-  time_zone: America/Los_Angeles
+# Loads default set of integrations. Do not remove.
+default_config:
 
-# Load frontend
-frontend:
+# Enables Python Scripts
+python_script:
 
-# Enable configuration panel
-config:
 
-# Enable the map panel
-map:
+# Text to speech
+tts:
+  - platform: google_translate
 
-# Enable mobile app integration
-mobile_app:
-
-# Enable history and logbook
-history:
-logbook:
-
-# Enable system health
-system_health:
-
-# Include automations and scripts
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
-# Example integrations
-weather:
-  - platform: met
-    name: Local Weather
 
-# Example groups
-group:
-  living_room:
-    name: "Living Room"
-    entities:
-      - light.living_room_main
-      - switch.living_room_fan
+lovelace:
+  resources:
+    - url: /config/www/community/lovelace-xiaomi-vacuum-card/xiaomi-vacuum-card.js
+      type: module
+    - url: /root/config/www/community/lovelace-multiple-entity-row/multiple-entity-row.js
+    - url: /hacsfiles/battery-state-card/battery-state-card.js
+      type: module
+    
+ 
+template:
+  - sensor:
+    - name: "input_power_with_efficiency_loss"
+      unique_id: "input_power_with_efficiency_loss"
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      state: >-
+        {% set inverter_rating = 10000 %} {# adjust this value to the rated power of your inverter #}
+        {% set inpower = states('sensor.inverter_input_power')|float(0) %}
+        {% if inpower < (inverter_rating*0.1) %}
+          {{ inpower * 0.90 }}
+        {% elif inpower < (inverter_rating*0.2) %}  
+          {{ inpower * 0.95 }}
+        {% else %}
+          {{ inpower * 0.98 }}
+        {% endif %}
+    
+   # - name: "solar_forecast_hourly_production"
+#      friendly_name: "Solar Forecast Hourly Production"
+ #     value_template: "{{ state_attr('sensor.solar_forecast_hourly_data', 'result') | tojson }}"
+ #     icon: mdi:solar-power
+        
+    # Stores the water meter reading at midnight
+    - name: "water_meter_start_of_day"
+      unique_id: "water_meter_start_of_day"
+      unit_of_measurement: "m³"
+      state_class: total
+      state: "{{ states('input_number.water_meter_midnight_value') }}"
 
-# Example sensors
+    # Calculates today's water usage
+    - name: "water_usage_today"
+      unique_id: "water_usage_today"
+      unit_of_measurement: "m³"
+      device_class: water
+      state_class: total_increasing
+      icon: mdi:water
+      state: >
+        {% set current = states('sensor.water_meter_total_m3')|float(0) %}
+        {% set start = states('input_number.water_meter_midnight_value')|float(0) %}
+        {{ (current - start)|round(3) }}
+        
+    # Creates a human-readable version in liters
+    - name: "water_usage_today_liters"
+      unique_id: "water_usage_today_liters"
+      unit_of_measurement: "L"
+      device_class: water
+      state_class: total_increasing
+      icon: mdi:water
+      state: >
+        {% set usage = states('sensor.water_usage_today')|float(0) %}
+        {{ (usage * 1000)|round(1) }}
+        
+  - binary_sensor:
+    - name: "High Water Usage"
+      state: "{{ (states('sensor.hourly_water_usage')|float(default=0) + states('input_number.last_water_usage')|float(default=0)) > 0.5 }}"
+      
+    - name: "Coffee Machine Steam Mode"
+      state: >-
+        {{ states('sensor.shellyplugg_till_lampan_power') | float(0) > 800 }}
+
+input_number:
+  last_water_usage:
+    name: Last Water Usage
+    min: 0
+    max: 9999999
+    step: 0.001
+    mode: box
+    
+  water_meter_midnight_value:
+    name: Water Meter Midnight Value
+    min: 0
+    max: 999999
+    step: 0.001
+    mode: box
+    
+mqtt:
+  sensor:
+    - name: "water_meter_total_m3"                                                                                                                                    
+      json_attributes_topic: "wmbusmeters/MainWater"
+      state_topic: "wmbusmeters/MainWater"
+      unit_of_measurement: m³                                                                                                                                             
+      value_template: "{{ value_json.total_m3 }}"
+      state_class: total_increasing
+      device_class: water
+      icon: "mdi:gauge"
+
 sensor:
-  - platform: time_date
-    display_options:
-      - 'time'
-      - 'date'
+  - platform: command_line
+    name: pytibber_version
+    command: "python3 -c 'import tibber; print(tibber.__version__)' 2>/dev/null || echo 'unknown'"
+    scan_interval: 86400  
+    
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/badtemperatur-application/devices/eui-a840411f8182f655/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Badtemperatur
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.TempC1 }}"
+    unit_of_measurement: "°C"
+    headers:
+      Authorization: !secret badtemperatur_token
+      Accept: text/event-stream
+      
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/badtemperatur-application/devices/eui-a840411f8182f655/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Badtemperatur_voltage
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.BatV }}"
+    unit_of_measurement: "v"
+    headers:
+      Authorization: !secret badtemperatur_token
+      Accept: text/event-stream      
+      
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-244e7b0000003fe8/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Stortank
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.ullage_cm }}"
+    unit_of_measurement: "cm"
+    headers:
+      Authorization: !secret septitankar_token2
+      Accept: text/event-stream
+      
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-244e7b0000003fe8/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Stortank-battery
+    value_template: >-
+      {% if value_json.result.uplink_message.decoded_payload.bat_pct is defined %}
+        {{ value_json.result.uplink_message.decoded_payload.bat_pct }}
+      {% else %}
+        {{ states('sensor.stortank_battery') }}
+      {% endif %}
+    unit_of_measurement: "%"
+    headers:
+      Authorization: !secret septitankar_token2
+      Accept: text/event-stream
 
-# Example binary sensors
-binary_sensor:
-  - platform: workday
-    country: US
+      
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-244e7b0000003fe8/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Stortank-temperatur
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.temp_C }}"
+    unit_of_measurement: "cm"
+    headers:
+      Authorization: !secret septitankar_token2
+      Accept: text/event-stream      
+      
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-24e124713e115756/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Lilltank
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.distance }}"
+    unit_of_measurement: "mm"
+    headers:
+      Authorization: !secret septitankar_token2
+      Accept: text/event-stream
+
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-24e124713e115756/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Lilltank-battery
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.battery }}"
+    unit_of_measurement: "%"
+    headers:
+      Authorization: !secret septitankar_token2
+      Accept: text/event-stream
+      
+  - platform: rest
+    resource: https://api.forecast.solar/estimate/watthours/period/57.71356/12.04249/5/18/11.7
+    name: solar_forecast_watts_per_hour
+    scan_interval: 86400  # 24 hours 
+    json_attributes:
+      - result
+      - message
+    value_template: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"      
+      
+  - platform: integration
+    source: sensor.input_power_with_efficiency_loss
+    name: solar_energy_riemann
+    round: 3
+    
+  - platform: template
+    sensors:
+      large_septitank_level:
+        friendly_name: "Large septitank level"
+        unit_of_measurement: '%'
+        value_template: >
+          {% set x = states('sensor.stortank') | float %}
+          {% if x is none or x == 'unknown' %}
+            unknown
+          {% else %}
+            {% set min_dist = 2 %}
+            {% set max_dist = 80 %}
+            {% set normalized = ((x - min_dist) / (max_dist - min_dist)) %}
+            {% set inverted = (1 - normalized) * 100 %}
+            {{ inverted | round(0) }}
+          {% endif %}
+
+  - platform: template
+    sensors:
+      small_septitank_level:
+        friendly_name: "Small septitank level"
+        unit_of_measurement: '%'
+        value_template: >
+          {% set x = states('sensor.lilltank') %}
+          {% if x is none or x == 'unknown' %}
+            unknown
+          {% else %}
+            {% set x = x | float %}
+            {% set min_dist = 170 %}
+            {% set max_dist = 800 %}
+            {% set normalized = ((x - min_dist) / (max_dist - min_dist)) %}
+            {% set inverted = (1 - normalized) * 100 %}
+            {{ inverted | round(0) }}
+          {% endif %}
+
+influxdb:
+  api_version: 1
+  host: 8f49de54-victoria-metrics 
+  port: 8428
+  max_retries: 3
+  measurement_attr: entity_id
+  tags_attributes:
+    - friendly_name
+    - unit_of_measurement
+  ignore_attributes:
+    - icon
+    - source
+    - options
+    - editable
+    - min
+    - max
+    - step
+    - mode
+    - marker_type
+    - preset_modes
+    - supported_features
+    - supported_color_modes
+    - effect_list
+    - attribution
+    - assumed_state
+    - state_open
+    - state_closed
+    - writable
+    - stateExtra
+    - event
+    - friendly_name
+    - device_class
+    - state_class
+    - ip_address
+    - device_file
+    - unit_of_measurement
+    - unitOfMeasure
+  include:
+    domains:
+      - sensor
+      - binary_sensor
+      - light
+      - switch
+      - cover
+      - climate
+      - input_boolean
+      - input_select
+      - number
+      - lock
+      - weather
+  exclude:
+    entity_globs:
+      - sensor.clock*
+      - sensor.date*
+      - sensor.glances*
+      - sensor.time*
+      - sensor.uptime*
+      - sensor.dwd_weather_warnings_*
+      - weather.weatherstation
+      - binary_sensor.*_smartphone_*
+      - sensor.*_smartphone_*
+      - sensor.adguard_home_*
+      - binary_sensor.*_internet_access
+      
+logger:
+  default: warn
+  logs:
+    pymodbus: error # only include this if you're having connectivity issues
+    huawei_solar: info
+    homeassistant.components.huawei_solar: info
+    homeassistant.components.http: info
+    homeassistant.components.rest: info
+    custom_components.tibber: info
+    homeassistant.components.tibber: info
+    tibber: info
+    
+shell_command:
+  # Backup logs with timestamp when HA shuts down
+  backup_logs: cp /config/home-assistant.log /config/old-logs/log-backup-`date +"%Y%m%d_%H%M"`.log
+  
+  # Optional: Clean up old backups (keep only last 7 days)
+  cleanup_old_logs: find /config/old-logs -name "log-backup-*" -mtime +7 -delete
+    

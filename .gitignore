@@ -93,10 +93,21 @@ config/.cloud/
 # Custom components (managed by HACS)
 config/custom_components/
 
+# WWW directory - contains user data and community cards
+config/www/snapshots/
+config/www/camera_snapshots/
+config/image/
+
+# WMBus meters - contains encryption keys
+config/wmbusmeters/
+
 # Personal configuration that shouldn't be shared
 config/known_devices.yaml
 config/automations_backup/
 config/scripts_backup/
+
+# Lock files and runtime files
+config/.ha_run.lock
 
 # Test artifacts
 .pytest_cache/

@@ -1,51 +1,530 @@
-# Example Home Assistant Automations
-# These are example automations showcasing common patterns
-
-- id: 'example_motion_lights'
-  alias: 'Example: Motion Activated Lights'
-  description: 'Turn on lights when motion is detected'
+- id: '1671962784621'
+  alias: tänd liten slinga i familjerum
+  description: ''
+  use_blueprint:
+    path: freakshock88/motion_illuminance_activated_entity.yaml
+    input:
+      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_iaszone
+      target_entity: light.brasrum_liten
+      illuminance_sensor: sensor.lumi_lumi_sensor_motion_aq2_illuminance
+      no_motion_wait: input_number.turn_off_familjerum_after_5_minutes
+      sunstate_condition: Always
+- id: '1671963235101'
+  alias: Tänd i brasrum stor - Custom
+  description: Turn lights on/off based on presence with time and illuminance conditions
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+    to: 'on'
+    id: presence_detected
+  - trigger: state
+    entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+    to: 'off'
+    id: presence_cleared
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: presence_detected
+        - condition: trigger
+          id: light_turned_off
+      - condition: time
+        after: input_datetime.endast_efter_klockan_06
+        before: input_datetime.endast_fore_klockan_22
+      - condition: numeric_state
+        entity_id: sensor.presence_sensor_fp2_cb1d_light_sensor_light_level
+        below: 40
+      - condition: state
+        entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+        state: 'on'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id:
+          - light.brasrum_liten
+          - light.shellydimmer2_84cca8acddf4
+        data:
+          brightness_pct: 100
+    - conditions:
+      - condition: trigger
+        id: presence_cleared
+      - condition: time
+        after: input_datetime.endast_efter_klockan_06
+        before: input_datetime.endast_fore_klockan_22
+      - condition: state
+        entity_id:
+        - light.shellydimmer2_84cca8acddf4
+        - light.brasrum_liten
+        state: 'on'
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id:
+          - light.shellydimmer2_84cca8acddf4
+          - light.brasrum_liten
+  mode: restart
+- id: '1671983607611'
+  alias: Tänd i badrum
+  description: ''
+  use_blueprint:
+    path: freakshock88/motion_illuminance_activated_entity.yaml
+    input:
+      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_iaszone_2
+      target_entity: light.badrum_dimmer
+      no_motion_wait: input_number.turn_off_familjerum_after_5_minutes
+      sunstate_condition: Always
+      time_limit_after: input_datetime.endast_efter_klockan_06
+      time_limit_before: input_datetime.endast_fore_klockan_22
+- id: '1672329877207'
+  alias: Tvättställ
+  description: ''
+  use_blueprint:
+    path: freakshock88/motion_illuminance_activated_entity.yaml
+    input:
+      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_iaszone_2
+      target_entity: switch.bastu_och_tvattstall_channel_2
+      no_motion_wait: input_number.turn_off_familjerum_after_5_minutes
+      sunstate_condition: Above horizon
+- id: '1674132930148'
+  alias: Vattenläcka
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.water_meter_total_m3
+    attribute: status
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+    from: OK
+    trigger: state
+  conditions: []
+  actions:
+  - device_id: e99dcc22d04575f0333e29b767892884
+    domain: mobile_app
+    type: notify
+    message: Vattenläcka
+  mode: single
+- id: '1675610299099'
+  alias: Bastu belysning
+  description: ''
+  use_blueprint:
+    path: freakshock88/motion_illuminance_activated_entity.yaml
+    input:
+      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_iaszone_2
+      target_entity: switch.bastu_och_tvattstall_channel_1
+      no_motion_wait: input_number.turn_off_familjerum_after_5_minutes
+      sunstate_condition: Always
+- id: '1680511723594'
+  alias: Släck i bastun efter en timme
+  description: ''
   trigger:
-    - platform: state
-      entity_id: binary_sensor.living_room_motion
-      to: 'on'
+  - platform: state
+    entity_id:
+    - automation.bastu_belysning
   condition:
-    - condition: state
-      entity_id: sun.sun
-      state: 'below_horizon'
+  - condition: state
+    entity_id: automation.bastu_belysning
+    state: 'on'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
   action:
-    - service: light.turn_on
-      target:
-        entity_id: light.living_room_main
-      data:
-        brightness_pct: 75
-
-- id: 'example_schedule_lights'
-  alias: 'Example: Evening Light Schedule'
-  description: 'Turn on evening lights at sunset'
+  - type: turn_off
+    device_id: 67a124b927d769552c7e234b1e9a832d
+    entity_id: switch.bastu_och_tvattstall_channel_1
+    domain: switch
+  mode: single
+- id: '1681899645172'
+  alias: Tänd i tvättstuga - Custom
+  description: Turn lights on/off based on presence with time and illuminance conditions
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+    to: 'on'
+    id: presence_detected
+  - trigger: state
+    entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+    to: 'off'
+    id: presence_cleared
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: presence_detected
+        - condition: trigger
+          id: light_turned_off
+      - condition: time
+        after: input_datetime.endast_efter_klockan_06
+        before: input_datetime.endast_fore_klockan_22
+      - condition: numeric_state
+        entity_id: sensor.presence_sensor_fp2_cb1d_light_sensor_light_level
+        below: 40
+      - condition: state
+        entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+        state: 'on'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.tvattstugan_dimmer
+        data:
+          brightness_pct: 100
+    - conditions:
+      - condition: trigger
+        id: presence_cleared
+      - condition: time
+        after: input_datetime.endast_efter_klockan_06
+        before: input_datetime.endast_fore_klockan_22
+      - condition: state
+        entity_id: light.tvattstugan_dimmer
+        state: 'on'
+      sequence:
+      - action: light.turn_off
+        target:
+          entity_id: light.tvattstugan_dimmer
+  mode: restart
+- id: '1689410124853'
+  alias: Högt vattenuttag
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.high_water_usage
+    from: 'off'
+    to: 'on'
+    trigger: state
+  conditions: []
+  actions:
+  - action: notify.mobile_app_pixel_9
+    data: {}
+  mode: single
+- id: '1689410714815'
+  alias: Register hourly water usage
+  description: ''
   trigger:
-    - platform: sun
-      event: sunset
-      offset: "-00:30:00"
+  - platform: time_pattern
+    hours: /1
+  condition: []
   action:
-    - service: light.turn_on
-      target:
-        area_id: living_room
-      data:
-        brightness_pct: 50
-
-- id: 'example_device_notification'
-  alias: 'Example: Low Battery Notification'
-  description: 'Notify when device battery is low'
+  - service: python_script.hourly_water_usage
+    data: {}
+  mode: single
+- id: '1713437332349'
+  alias: Stora septitanken test
+  description: ''
   trigger:
-    - platform: numeric_state
-      entity_id: sensor.phone_battery_level
-      below: 20
+  - platform: numeric_state
+    entity_id:
+    - sensor.large_septitank_level
+    above: 19.9
+  condition: []
+  action:
+  - service: notify.mobile_app_pixel_6a
+    metadata: {}
+    data:
+      message: Stora septitanken över 20%
+  - service: notify.mobile_app_pixel_6a
+    data:
+      message: Ett annat sätt att skicka meddelande om stora septitanken i automatiseringen.
+        Ta bort denna om bägge kommer fram.
+  mode: single
+- id: '1713440467306'
+  alias: Badtemperatur low voltage
+  description: ''
+  trigger:
+  - platform: numeric_state
+    entity_id:
+    - sensor.badtemperatur_voltage
+    below: 2.7
+  condition: []
+  action:
+  - service: notify.persistent_notification
+    metadata: {}
+    data:
+      message: Batteriet i badtemperatur sensorn behöver bytas
+  mode: single
+- id: '1733643861942'
+  alias: Tänd ledslingan
+  description: Tänder ledslingan vid solnedgång
+  triggers:
+  - trigger: sun
+    event: sunset
+    offset: 0
+  conditions: []
+  actions:
+  - type: turn_on
+    device_id: 8458999bec93d003d96f2db50fa93c52
+    entity_id: 60fd53bbc70723238041c7ed70b73e9e
+    domain: switch
+  mode: single
+- id: '1733643938813'
+  alias: Släck ledslingan
+  description: Släcker ledslingan vid soluppgång
+  triggers:
+  - trigger: sun
+    event: sunrise
+    offset: 0
+  conditions: []
+  actions:
+  - type: turn_off
+    device_id: 8458999bec93d003d96f2db50fa93c52
+    entity_id: 60fd53bbc70723238041c7ed70b73e9e
+    domain: switch
+  mode: single
+- id: '1739885467697'
+  alias: Reset water meter start of day
+  description: ''
+  triggers:
+  - trigger: time
+    at: 00:00:00
+  conditions: []
+  actions:
+  - action: input_number.set_value
+    metadata: {}
+    data:
+      value: '{{ states(''sensor.water_meter_total_m3'')|float(0) }}'
+    target:
+      entity_id: input_number.water_meter_midnight_value
+  mode: single
+- id: '1740989197721'
+  alias: Högt effektuttag
+  description: ''
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.power_meter_active_power
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+    below: -3000
+  conditions: []
+  actions:
+  - action: notify.mobile_app_pixel_9
+    metadata: {}
+    data:
+      message: High power consumption
+  mode: single
+- id: '1741099646956'
+  alias: Update Solar Forecast at 14:00
+  description: ''
+  triggers:
+  - trigger: time
+    at: '14:00:00'
+  conditions: []
+  actions:
+  - action: homeassistant.update_entity
+    metadata: {}
+    data:
+      entity_id:
+      - sensor.solar_forecast_watts_per_hour
+  mode: single
+- id: '1742205586523'
+  alias: 'Sätt på kaffemaskin '
+  description: ''
+  triggers:
+  - trigger: time
+    at: 06:00:00
+  - trigger: state
+    entity_id: []
+  conditions: []
+  actions:
+  - type: turn_on
+    device_id: a840ee3c769b5a80650759114e7fd34e
+    entity_id: c0fa37a062e756ff5423cb453306dffc
+    domain: switch
+  mode: single
+- id: '1742205671963'
+  alias: 'Stäng av kaffemaskin '
+  description: ''
+  triggers:
+  - trigger: time
+    at: '16:00:00'
+  conditions: []
+  actions:
+  - type: turn_off
+    device_id: a840ee3c769b5a80650759114e7fd34e
+    entity_id: c0fa37a062e756ff5423cb453306dffc
+    domain: switch
+  mode: single
+- id: '1743669780278'
+  alias: Varna för ångknappen
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.coffee_machine_steam_mode
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  conditions: []
+  actions:
+  - action: notify.mobile_app_pixel_9
+    metadata: {}
+    data:
+      message: Ångknappen har glömts på
+      title: Miss Silivia
+  mode: single
+- id: '1745400379629'
+  alias: Take snapshot
+  description: ''
+  triggers:
+  - trigger: time_pattern
+    hours: '*'
+    minutes: '0'
+    seconds: '0'
+  conditions: []
+  actions:
+  - action: camera.snapshot
+    data:
+      filename: /config/www/camera_snapshots/daily_snapshot_{{ now().strftime('%Y-%m-%d_%H')
+        }}.jpg
+    target:
+      device_id: c5686e55956e6b76197f48c082be5e1f
+  mode: single
+- alias: Backup Log file on shutdown
+  trigger:
+    platform: homeassistant
+    event: shutdown
+  action:
+    service: shell_command.backup_logs
+  id: 19bfe771af4f4cbea9ccaaeafa2aa827
+- alias: Clean up old log backups weekly
+  trigger:
+    platform: time
+    at: 02:00:00
   condition:
-    - condition: time
-      after: '09:00:00'
-      before: '22:00:00'
+    condition: time
+    weekday:
+    - sun
   action:
-    - service: notify.mobile_app
-      data:
-        title: "Low Battery Alert"
-        message: "Your phone battery is at {{ states('sensor.phone_battery_level') }}%"
+    service: shell_command.cleanup_old_logs
+  id: 1e24b917ba314244b3bab64cf2f189bd
+- id: '1755784609103'
+  alias: FP2 Säkerhetsvarning
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_sensor_fp2_b37b_presence_sensor_1
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: notify.mobile_app_pixel_9
+    data:
+      title: "\U0001F6A8 SÄKERHETSVARNING"
+      message: FP2 detekterade rörelse i garaget {{ now().strftime('%H:%M:%S') }}
+  - action: media_player.volume_set
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      volume_level: 1
+  - action: tts.cloud_say
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      message: VARNING! Obehörig person upptäckt i garaget! Kameror spelar in och
+        husägaren är på väg ut med hagelgeväret. Lämna området omedelbart!
+      language: sv-SE
+      options:
+        voice: MattiasNeural
+  - delay: 00:00:10
+  - action: tts.cloud_say
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      message: WARNING! Unauthorized person detected in garage! Police have been notified
+        and cameras are recording! Leave the area immediately!
+      language: en-US
+      options:
+        voice: RogerNeural
+  - delay: 00:00:10
+  - action: tts.cloud_say
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      message: ACHTUNG ACHTUNG! Unbefugte Person im Bereich erkannt! Die Polizei ist
+        bereits benachrichtigt und Kameras zeichnen auf! Sofort das Gebiet verlassen!  ACHTUNG
+        ACHTUNG!
+      language: de-DE
+      options:
+        voice: ConradNeural
+  - delay: 00:00:05
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      media_content_id: Deutschland Rammstein
+      media_content_type: music
+  - action: media_player.repeat_set
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      repeat: one
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: binary_sensor.presence_sensor_fp2_b37b_presence_sensor_1
+      from: 'on'
+      to: 'off'
+    timeout: 00:30:00
+  - action: media_player.media_stop
+    target:
+      entity_id: media_player.nesthub63bf
+    data: {}
+  mode: single
+- id: '1755784685823'
+  alias: FP2 Närvaro borta
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.presence_sensor_fp2_b37b_presence_sensor_1
+    from: 'on'
+    to: 'off'
+  conditions: []
+  actions:
+  - action: notify.mobile_app_pixel_9
+    data:
+      title: "\U0001F3E0 Ingen närvaro"
+      message: FP2 sensor detekterar ingen rörelse {{ now().strftime('%H:%M:%S') }}
+  mode: single
+- id: '1757231429049'
+  alias: Tänd i tväggstuga
+  description: ''
+  use_blueprint:
+    path: freakshock88/motion_illuminance_activated_entity.yaml
+    input:
+      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_iaszone_3
+      target_entity: light.tvattstugan_dimmer
+      no_motion_wait: input_number.turn_off_familjerum_after_5_minutes
+      sunstate_condition: Always
+      time_limit_before: input_datetime.endast_fore_klockan_22
+      time_limit_after: input_datetime.endast_efter_klockan_06
+- id: '1757844727637'
+  alias: Rörelse råttfälla
+  description: ''
+  triggers:
+  - type: changed_states
+    device_id: c5e8c98bd4b18c95ef2f1d28e8772e8e
+    entity_id: 6a78c9516e9d8f47ab85067c519b59b1
+    domain: switch
+    trigger: device
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  conditions: []
+  actions:
+  - action: notify.mobile_app_pixel_9
+    metadata: {}
+    data:
+      message: råttfällekamera
+  mode: single
