@@ -82,8 +82,12 @@ template:
       state: "{{ (states('sensor.hourly_water_usage')|float(default=0) + states('input_number.last_water_usage')|float(default=0)) > 0.5 }}"
       
     - name: "Coffee Machine Steam Mode"
-      state: >-
-        {{ states('sensor.shellyplugg_till_lampan_power') | float(0) > 800 }}
+      state: "{{ states('input_boolean.coffee_steam_mode_active') == 'on' }}"
+
+input_boolean:
+  coffee_steam_mode_active:
+    name: Coffee Machine Steam Mode Active
+    initial: false
 
 input_number:
   last_water_usage:
@@ -92,7 +96,7 @@ input_number:
     max: 9999999
     step: 0.001
     mode: box
-    
+
   water_meter_midnight_value:
     name: Water Meter Midnight Value
     min: 0

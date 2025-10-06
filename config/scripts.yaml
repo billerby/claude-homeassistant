@@ -1,0 +1,15 @@
+play_rammstein:
+  alias: Spela Rammstein Deutschland
+  sequence:
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      media_content_id: "spotify:track:2bPGTMB5sFfFYQ2YvSmup0"
+      media_content_type: "music"
+  - action: media_player.repeat_set
+    target:
+      entity_id: media_player.nesthub63bf
+    data:
+      repeat: one
+  mode: single
