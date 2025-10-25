@@ -76,7 +76,68 @@ template:
       state: >
         {% set usage = states('sensor.water_usage_today')|float(0) %}
         {{ (usage * 1000)|round(1) }}
-        
+
+    # EV CHARGING: Parse battery schedule to check if battery is charging now
+    - name: "Battery Charging Current Hour"
+      unique_id: battery_charging_current_hour
+      state: >
+        {% set ns = namespace(charging=false) %}
+        {% for i in range(1, 10) %}
+          {% set period_name = 'Period ' ~ i %}
+          {% set period = state_attr('sensor.batteries_tou_charging_and_discharging_periods', period_name) %}
+          {% if period and '+' in period %}
+            {% set parts = period.split('/') %}
+            {% if parts|length == 3 %}
+              {% set times = parts[0].split('-') %}
+              {% if times|length == 2 %}
+                {% set start_time = times[0] %}
+                {% set end_time = times[1] %}
+                {% set day = parts[1]|int(0) %}
+                {% set current_day = now().isoweekday() %}
+                {% set current_time = now().strftime('%H:%M') %}
+                {# Match if same day and within time range #}
+                {% if day == current_day and current_time >= start_time and current_time <= end_time %}
+                  {% set ns.charging = true %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.charging }}
+
+    # EV CHARGING: Static power limit based on battery schedule
+    - name: "EV Max Power Static"
+      unique_id: ev_max_power_static
+      unit_of_measurement: "kW"
+      device_class: power
+      state: >
+        {% if is_state('sensor.battery_charging_current_hour', 'True') %}
+          6
+        {% else %}
+          11
+        {% endif %}
+
+    # EV CHARGING: Real-time dynamic power available (accounts for grid usage)
+    - name: "EV Max Power Available"
+      unique_id: ev_max_power_available
+      unit_of_measurement: "kW"
+      device_class: power
+      state: >
+        {% set grid_power_w = states('sensor.power_meter_active_power')|float(0) %}
+        {% set grid_power_kw = grid_power_w / 1000 %}
+        {% set safety_limit = 14.5 %}
+        {% set static_max = states('sensor.ev_max_power_static')|float(11) %}
+        {% set dynamic_available = safety_limit - grid_power_kw %}
+        {% set final_limit = [dynamic_available, static_max]|min %}
+        {% if final_limit < 1 %}
+          0
+        {% else %}
+          {{ final_limit|round(1) }}
+        {% endif %}
+
+    # EV CHARGING: Cheapest hours - calculated by Node-RED and sent via MQTT
+    # See Node-RED flow for calculation logic
+
   - binary_sensor:
     - name: "High Water Usage"
       state: "{{ (states('sensor.hourly_water_usage')|float(default=0) + states('input_number.last_water_usage')|float(default=0)) > 0.5 }}"
@@ -97,9 +158,56 @@ template:
         {# Steam mode: average power over 1000W for 2 minutes OR current power sustained over 1100W #}
         {{ startup_period_passed and (avg_power > 1000 or current_power > 1100) }}
 
+    # EV CHARGING: Check if we're in off-tariff period
+    - name: "Off Tariff Period Active"
+      unique_id: off_tariff_period_active
+      state: >
+        {% set now_hour = now().hour %}
+        {% set now_month = now().month %}
+        {% set now_weekday = now().isoweekday() %}
+        {% set is_winter = now_month >= 11 or now_month <= 3 %}
+        {% set is_weekday = now_weekday <= 5 %}
+        {% set is_weekend = now_weekday >= 6 %}
+        {% set is_off_peak_hours = now_hour >= 20 or now_hour < 7 %}
+
+        {# Off-tariff if: #}
+        {# 1. Nov-March weekday nights (20:00-07:00) #}
+        {# 2. Nov-March weekends (all day) #}
+        {# 3. Apr-Oct (all times) #}
+        {% if not is_winter %}
+          true
+        {% elif is_weekend %}
+          true
+        {% elif is_weekday and is_off_peak_hours %}
+          true
+        {% else %}
+          false
+        {% endif %}
+
+    # EV CHARGING: Should we charge the EV right now?
+    - name: "EV Should Charge Now"
+      unique_id: ev_should_charge_now
+      state: >
+        {% set current_hour = now().hour %}
+        {% set cheapest_hours = state_attr('sensor.ev_charging_hours_tonight', 'cheapest_hours') %}
+        {% set in_cheap_window = current_hour in cheapest_hours if cheapest_hours else false %}
+        {% set off_tariff_active = is_state('binary_sensor.off_tariff_period_active', 'on') %}
+        {% set cable_locked = is_state('binary_sensor.easee_home_91929_cable_locked', 'on') %}
+        {% set smart_enabled = is_state('input_boolean.ev_smart_charging_enabled', 'on') %}
+        {% set available_power = states('sensor.ev_max_power_available')|float(0) %}
+        {% set current_soc = states('sensor.otto_von_bismarck_battery')|float(0) %}
+        {% set target_soc = states('number.otto_von_bismarck_charge_limit')|float(100) %}
+        {% set needs_charging = current_soc < target_soc %}
+        {{ smart_enabled and off_tariff_active and in_cheap_window and cable_locked and available_power > 1 and needs_charging }}
+
 input_boolean:
   coffee_steam_mode_active:
     name: Coffee Machine Steam Mode Active
+    initial: false
+
+  ev_smart_charging_enabled:
+    name: EV Smart Charging Enabled
+    icon: mdi:ev-station
     initial: false
 
 input_number:
@@ -116,17 +224,43 @@ input_number:
     max: 999999
     step: 0.001
     mode: box
+
+  ev_charging_power_limit:
+    name: EV Charging Power Limit
+    min: 1
+    max: 11
+    step: 0.5
+    unit_of_measurement: "kW"
+    icon: mdi:speedometer
+    mode: box
+
+  ev_charging_current_limit:
+    name: EV Charging Current Limit
+    min: 6
+    max: 16
+    step: 1
+    unit_of_measurement: "A"
+    icon: mdi:current-ac
+    mode: box
     
 mqtt:
   sensor:
-    - name: "water_meter_total_m3"                                                                                                                                    
+    - name: "water_meter_total_m3"
       json_attributes_topic: "wmbusmeters/MainWater"
       state_topic: "wmbusmeters/MainWater"
-      unit_of_measurement: m³                                                                                                                                             
+      unit_of_measurement: m³
       value_template: "{{ value_json.total_m3 }}"
       state_class: total_increasing
       device_class: water
       icon: "mdi:gauge"
+
+    # EV CHARGING: Cheapest hours from Node-RED (via Tibber prices)
+    - name: "EV Charging Hours Tonight"
+      unique_id: ev_charging_hours_tonight_mqtt
+      state_topic: "homeassistant/sensor/ev_charging_hours/state"
+      value_template: "{{ value_json | length }}"
+      json_attributes_topic: "homeassistant/sensor/ev_charging_hours/state"
+      json_attributes_template: "{{ {'cheapest_hours': value_json} | tojson }}"
 
 sensor:
   # Statistics sensor for coffee machine power averaging
