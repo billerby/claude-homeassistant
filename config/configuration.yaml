@@ -80,9 +80,22 @@ template:
   - binary_sensor:
     - name: "High Water Usage"
       state: "{{ (states('sensor.hourly_water_usage')|float(default=0) + states('input_number.last_water_usage')|float(default=0)) > 0.5 }}"
-      
+
     - name: "Coffee Machine Steam Mode"
       state: "{{ states('input_boolean.coffee_steam_mode_active') == 'on' }}"
+
+    # More reliable steam mode detection using average power over 2 minutes
+    - name: "Coffee Machine Steam Mode Detected"
+      unique_id: "coffee_machine_steam_mode_detected"
+      device_class: heat
+      state: >
+        {% set current_power = states('sensor.shellyplugg_till_lampan_power')|float(0) %}
+        {% set avg_power = states('sensor.coffee_machine_power_2min_avg')|float(0) %}
+        {% set machine_on_time = now() - states.automation.satt_pa_kaffemaskin.attributes.last_triggered if states.automation.satt_pa_kaffemaskin.attributes.last_triggered else timedelta(hours=24) %}
+        {# Machine must be on for at least 5 minutes to avoid startup detection #}
+        {% set startup_period_passed = machine_on_time > timedelta(minutes=5) %}
+        {# Steam mode: average power over 1000W for 2 minutes OR current power sustained over 1100W #}
+        {{ startup_period_passed and (avg_power > 1000 or current_power > 1100) }}
 
 input_boolean:
   coffee_steam_mode_active:
@@ -116,6 +129,16 @@ mqtt:
       icon: "mdi:gauge"
 
 sensor:
+  # Statistics sensor for coffee machine power averaging
+  - platform: statistics
+    name: "Coffee Machine Power 2min Avg"
+    unique_id: "coffee_machine_power_2min_avg"
+    entity_id: sensor.shellyplugg_till_lampan_power
+    state_characteristic: mean
+    max_age:
+      minutes: 2
+    sampling_size: 400
+
   - platform: command_line
     name: pytibber_version
     command: "python3 -c 'import tibber; print(tibber.__version__)' 2>/dev/null || echo 'unknown'"
