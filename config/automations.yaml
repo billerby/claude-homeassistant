@@ -523,3 +523,35 @@
     data:
       message: råttfällekamera
   mode: single
+- id: '1757844727639'
+  alias: Aktivera peak shaving vid tariffstart
+  description: Enables battery peak shaving when tariff period starts (uses off_tariff_period_active sensor)
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.off_tariff_period_active
+    from: 'on'
+    to: 'off'
+  conditions: []
+  actions:
+  - action: select.select_option
+    target:
+      entity_id: select.battery_capacity_control_mode
+    data:
+      option: active_capacity_control
+  mode: single
+- id: '1757844727640'
+  alias: Avaktivera peak shaving vid tariffslut
+  description: Disables battery peak shaving when tariff period ends (uses off_tariff_period_active sensor)
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.off_tariff_period_active
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: select.select_option
+    target:
+      entity_id: select.battery_capacity_control_mode
+    data:
+      option: disable
+  mode: single
