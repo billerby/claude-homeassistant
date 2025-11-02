@@ -555,3 +555,102 @@
     data:
       option: disable
   mode: single
+- id: '1757844727641'
+  alias: Mill Radiator - Start Heating (Off-Tariff)
+  description: Turns on Mill radiator to 21°C during off-tariff periods (when electricity is cheap)
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.off_tariff_period_active
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.electricity_price_karnvedsgatan_16
+    below: 2
+  actions:
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: climate.mill_convector
+    data:
+      hvac_mode: heat
+  - action: climate.set_temperature
+    target:
+      entity_id: climate.mill_convector
+    data:
+      temperature: 21
+  mode: single
+- id: '1757844727642'
+  alias: Mill Radiator - Lower Temperature (Peak Tariff)
+  description: Lowers Mill radiator to 18°C during peak tariff periods to save energy
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.off_tariff_period_active
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.electricity_price_karnvedsgatan_16
+    below: 2
+  actions:
+  - action: climate.set_temperature
+    target:
+      entity_id: climate.mill_convector
+    data:
+      temperature: 18
+  mode: single
+- id: '1757844727643'
+  alias: Mill Radiator - EMERGENCY Price Shutoff
+  description: Immediately turns off Mill radiator when electricity price exceeds 2 SEK/kWh
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.electricity_price_karnvedsgatan_16
+    above: 2
+  conditions: []
+  actions:
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: climate.mill_convector
+    data:
+      hvac_mode: 'off'
+  mode: single
+- id: '1757844727644'
+  alias: Mill Radiator - Restore After Price Drop
+  description: Restores normal tariff-based operation when electricity price drops below 2 SEK/kWh
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.electricity_price_karnvedsgatan_16
+    below: 2
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: binary_sensor.off_tariff_period_active
+        state: 'on'
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.mill_convector
+        data:
+          hvac_mode: heat
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.mill_convector
+        data:
+          temperature: 21
+    - conditions:
+      - condition: state
+        entity_id: binary_sensor.off_tariff_period_active
+        state: 'off'
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.mill_convector
+        data:
+          hvac_mode: heat
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.mill_convector
+        data:
+          temperature: 18
+  mode: single
