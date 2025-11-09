@@ -1,0 +1,871 @@
+title: Kärnvedsgatan
+views:
+- theme: Backend-selected
+  title: Solproduktion
+  path: solproduktion
+  icon: mdi:solar-power-variant
+  badges:
+  - type: entity
+    show_name: true
+    show_state: true
+    show_icon: true
+    entity: sensor.otto_von_bismarck_battery
+    color: ''
+    name: Otto von Bismarck SoC
+  cards:
+  - type: custom:power-flow-card
+    entities:
+      battery: sensor.battery_charge_discharge_power
+      grid: sensor.power_meter_active_power
+      battery_charge: sensor.battery_state_of_capacity
+      solar: sensor.inverter_input_power
+      water: sensor.water_usage_today_liters
+    inverted_entities: grid, battery
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: Battery Status
+      show_states: true
+      colorize_states: true
+    now:
+      show: true
+      label: now
+    all_series_config:
+      type: area
+      opacity: 0.1
+      stroke_width: 1
+      group_by:
+        func: avg
+        duration: 15m
+      show:
+        in_header: false
+    series:
+    - entity: sensor.battery_state_of_capacity
+      type: line
+      yaxis_id: pct
+      opacity: 1
+      stroke_width: 3
+      group_by:
+        func: last
+        duration: 15m
+      show:
+        in_header: true
+    - entity: sensor.battery_charge_discharge_power
+      name: Battery Charge
+      transform: return Math.max(0,x);
+      color: darkgreen
+      yaxis_id: watts
+    - entity: sensor.battery_charge_discharge_power
+      name: Battery Discharge
+      color: '#800080'
+      transform: return -Math.min(0,x);
+      yaxis_id: watts
+    - entity: sensor.nordpool_kwh_se3_sek_3_10_025
+      name: Spotprice
+      color: blue
+      yaxis_id: price
+      data_generator: "return entity.attributes.raw_today.map((start, index) => {\n  return [new Date(start[\"start\"]).getTime(),\
+        \ entity.attributes.raw_today[index][\"value\"]];\n});\n"
+    yaxis:
+    - id: pct
+      show: true
+      opposite: true
+      decimals: 0
+      max: 100
+      min: 15
+    - id: watts
+      show: true
+      decimals: 0
+      align_to: 250
+    - id: price
+      show: true
+      decimals: 2
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: Power
+      show_states: true
+      colorize_states: true
+    all_series_config:
+      type: area
+      opacity: 0.1
+      stroke_width: 1
+      group_by:
+        func: last
+        duration: 5m
+    series:
+    - entity: sensor.inverter_input_power
+      color: lightgreen
+    - entity: sensor.inverter_active_power
+      color: blue
+    - entity: sensor.battery_charge_discharge_power
+      name: Battery Charge
+      transform: return Math.max(0,x);
+      color: orange
+    - entity: sensor.battery_charge_discharge_power
+      name: Battery Discharge
+      color: '#800080'
+      transform: return -Math.min(0,x);
+    - entity: sensor.power_meter_active_power
+      name: Grid Export
+      transform: return Math.max(0,x);
+      color: lime
+    - entity: sensor.power_meter_active_power
+      name: Grid Import
+      color: red
+      transform: return -Math.min(0,x);
+  - type: custom:apexcharts-card
+    graph_span: 24h
+    span:
+      start: day
+    header:
+      show: true
+      title: Solar Production Forecast
+      show_states: true
+      colorize_states: true
+    now:
+      show: true
+      label: Now
+    series:
+    - entity: sensor.solar_forecast_watts_per_hour
+      name: Forecast (Wh/hour)
+      type: column
+      color: orange
+      opacity: 0.6
+      data_generator: |
+        const forecast = entity.attributes.result;
+        if (!forecast) return [];
+        const data = Object.entries(forecast).map(([time, watthours]) => {
+          return [new Date(time).getTime(), watthours];
+        });
+        return data;
+      yaxis_id: energy
+    - entity: sensor.inverter_input_power
+      name: Actual Power (W)
+      type: line
+      stroke_width: 2
+      color: green
+      yaxis_id: power
+    yaxis:
+    - id: energy
+      decimals: 0
+      min: 0
+      apex_config:
+        title:
+          text: Wh
+    - id: power
+      decimals: 0
+      min: 0
+      opposite: true
+      apex_config:
+        title:
+          text: W
+  - type: gauge
+    entity: sensor.electricity_price_karnvedsgatan_16
+    max: 8
+    needle: true
+    severity:
+      green: 1
+      yellow: 2
+      red: 3
+    name: Elpris nu
+    unit: kWh
+  - type: custom:apexcharts-card
+    experimental:
+      color_threshold: true
+    graph_span: 48h
+    show:
+      last_updated: true
+    header:
+      show: true
+      title: Price 48h Optimized battery strategy
+      colorize_states: true
+    span:
+      offset: +1d
+    now:
+      show: true
+      label: nu
+    series:
+    - entity: sensor.optimized_battery_schedule
+      yaxis_id: price
+      type: column
+      stroke_width: 9
+      name: Spotpris
+      opacity: 0.4
+      color_threshold:
+      - value: 1
+        color: darkgreen
+      - value: 2
+        color: '#FF9800'
+      - value: 3
+        color: red
+      data_generator: "return entity.attributes.price.map((record, index) => {\n  return [new Date(record.start), record.value];\n\
+        });\n"
+    - entity: sensor.optimized_battery_schedule
+      yaxis_id: activity
+      show:
+        in_chart: true
+      name: Laddningsstatus
+      type: area
+      stroke_width: 1
+      curve: stepline
+      opacity: 0.3
+      color: lightblue
+      data_generator: "return entity.attributes.schedule.map((record, index) => {\n\n  return [new Date(record.start), record.activity];\n\
+        });\n"
+    yaxis:
+    - id: price
+      show: true
+      min: 0
+      decimals: 2
+    - id: activity
+      opposite: true
+      show: false
+      decimals: 0
+      align_to: 1
+  - type: entities
+    entities:
+    - sensor.electricity_price_karnvedsgatan_16
+    - sensor.monthly_cost_karnvedsgatan_16
+    - sensor.monthly_net_consumption_karnvedsgatan_16
+    - sensor.monthly_peak_hour_consumption_karnvedsgatan_16
+    - sensor.time_of_max_hour_consumption_karnvedsgatan_16
+    title: Kärnvedsgatan 16
+  - type: custom:apexcharts-card
+    graph_span: 1d
+    span:
+      start: day
+    header:
+      show: true
+      title: Vattenförbrukning
+      show_states: true
+      colorize_states: true
+    series:
+    - entity: sensor.water_usage_today_liters
+      color: blue
+      name: Idag
+    - entity: sensor.water_usage_today_liters
+      color: green
+      offset: -1d
+      name: Igår
+- theme: Backend-selected
+  path: default_view
+  title: Home
+  icon: mdi:home
+  badges: []
+  cards:
+  - type: entity
+    entity: sensor.water_meter_total_m3
+    attribute: status
+    name: Status of the watermeter
+    state_color: true
+    icon: mdi:gauge
+  - type: entities
+    entities:
+    - type: attribute
+      name: Period 1
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 1
+    - type: attribute
+      name: Period 2
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 2
+    - type: attribute
+      name: Period 3
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 3
+    - type: attribute
+      name: Period 4
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 4
+    - type: attribute
+      name: Period 5
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 5
+    - type: attribute
+      name: Period 6
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 6
+    - type: attribute
+      name: Period 7
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 7
+    - type: attribute
+      name: Period 8
+      entity: sensor.batteries_tou_charging_and_discharging_periods
+      attribute: Period 8
+  - type: vertical-stack
+    cards:
+    - type: horizontal-stack
+      cards:
+      - type: gauge
+        entity: sensor.nasen_volume_1_volume_used
+        name: Storage
+        needle: true
+        severity:
+          green: 0
+          yellow: 70
+          red: 85
+      - type: gauge
+        entity: sensor.nasen_cpu_utilisation_total
+        name: CPU
+        needle: true
+        max: 100
+        severity:
+          green: 0
+          yellow: 60
+          red: 80
+      - type: gauge
+        entity: sensor.nasen_memory_usage_real
+        name: Memory
+        needle: true
+        max: 100
+        severity:
+          green: 0
+          yellow: 70
+          red: 85
+    - type: entities
+      title: Nasen NAS Details
+      state_color: true
+      entities:
+      - entity: sensor.nasen_volume_1_used_space
+        name: Storage Used
+        icon: mdi:harddisk
+      - entity: sensor.nasen_temperature
+        name: System Temperature
+      - entity: sensor.nasen_drive_1_temperature
+        name: Drive Temperature
+      - type: divider
+      - entity: sensor.nasen_download_throughput
+        name: Download
+        icon: mdi:download
+      - entity: sensor.nasen_upload_throughput
+        name: Upload
+        icon: mdi:upload
+      - type: divider
+      - entity: binary_sensor.nasen_drive_1_below_min_remaining_life
+        name: Drive Health
+      - entity: update.nasen_dsm_update
+        name: DSM Update
+  - type: custom:xiaomi-vacuum-card
+    entity: vacuum.goran
+  - type: horizontal-stack
+    cards:
+    - type: entities
+      entities:
+      - entity: binary_sensor.coffee_machine_steam_mode
+      title: Ångknapp Miss Silvia status
+      state_color: true
+    - type: custom:battery-state-card
+  - type: grid
+    square: false
+    columns: 1
+    visibility:
+    - condition: not
+      conditions:
+      - condition: state
+        entity: climate.mill_convector
+        state: unavailable
+    cards:
+    - type: entities
+      entities:
+      - sensor.mill_convector_control_signal
+      - sensor.mill_convector_current_power
+      - device_tracker.mill_convection_g3
+    - type: thermostat
+      entity: climate.mill_convector
+  - type: custom:apexcharts-card
+    graph_span: 4h
+    span:
+      end: minute
+    header:
+      show: true
+      title: Effektförbrukning Silvia
+      show_states: true
+      colorize_states: true
+    series:
+    - entity: sensor.shellyplugg_till_lampan_power
+      name: Idag
+      stroke_width: 1
+      type: line
+  - type: horizontal-stack
+    cards:
+    - type: picture-entity
+      entity: camera.g3_flex_high
+    - type: media-control
+      entity: media_player.spotify_billerby
+  - type: horizontal-stack
+    cards:
+    - type: entities
+      entities:
+      - button.presence_sensor_fp2_b37b_identify
+      - sensor.presence_sensor_fp2_b37b_light_sensor_light_level
+      - binary_sensor.presence_sensor_fp2_b37b_presence_sensor_1
+      title: Närvaro garaget
+    - type: entities
+      entities:
+      - button.presence_sensor_fp2_cb1d_identify
+      - sensor.presence_sensor_fp2_cb1d_light_sensor_light_level
+      - binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
+      title: Närvaro tvättstugan
+- title: Apelgården
+  path: apelgarden
+  badges: []
+  cards:
+  - type: gauge
+    entity: sensor.large_septitank_level
+    severity:
+      green: 50
+      yellow: 70
+      red: 80
+  - type: entities
+    entities:
+    - sensor.signal_strength_mjorn_apelgarden_66
+    title: Tibber Pulse Mjörn Apelgården 66
+  - type: custom:battery-state-card
+    title: Battery levels
+    entities:
+    - sensor.lilltank_battery
+    - sensor.stortank_battery
+  - type: thermostat
+    entity: climate.stora_badrummet
+    features:
+    - type: climate-hvac-modes
+      hvac_modes:
+      - heat
+      - 'off'
+  - type: entities
+    entities:
+    - entity: sensor.stora_badrummet_energy_usage
+      name: Energy Usage
+    - entity: sensor.stora_badrummet_floor_temperature
+      name: Floor Temperature
+    - entity: sensor.stora_badrummet_room_temperature
+      name: Room Temperature
+    title: 'Stora badrummet '
+  - type: grid
+    square: false
+    columns: 1
+    cards:
+    - type: entities
+      entities:
+      - entity: switch.erik_s_device_climate_react
+        name: Climate React
+      - entity: switch.erik_s_device_timer
+        name: Timer
+      title: Erik's device
+    - type: thermostat
+      entity: climate.erik_s_device
+      features:
+      - type: climate-hvac-modes
+        hvac_modes:
+        - cool
+        - heat
+        - fan_only
+        - dry
+        - heat_cool
+        - 'off'
+- theme: Backend-selected
+  title: Väder
+  icon: mdi:temperature-celsius
+  badges:
+  - entity: sensor.badtemperatur
+  - type: entity
+    entity: sensor.tempsensor_frysen_temperature
+  - type: entity
+    entity: sensor.tempsensor_frysen_pressure
+  - type: entity
+    entity: sensor.tempsensor_frysen_humidity
+  - type: entity
+    entity: sensor.tempsensor_frysen_battery
+  cards:
+  - type: entities
+    entities:
+    - entity: sensor.ngenic_sensor_vardagsrummet_temperature
+      name: Vardagsrummet
+    - entity: sensor.ngenic_sensor_kallarrum_temperature
+    - entity: sensor.ngenic_sensor_kallarrum_humidity
+    - entity: sensor.ngenic_controller_temperature
+      name: Temperatur ute
+  - show_current: false
+    show_forecast: true
+    type: weather-forecast
+    entity: weather.forecast_karnvedsgatan
+  - type: history-graph
+    entities:
+    - entity: sensor.badtemperatur
+    title: Historik badtemperatur
+    hours_to_show: 200
+    refresh_interval: 1
+  - type: weather-forecast
+    entity: weather.forecast_karnvedsgatan
+    show_forecast: false
+  - type: entity
+    entity: sensor.badtemperatur
+  - type: custom:apexcharts-card
+    graph_span: 30d
+    header:
+      show: true
+      title: Badtemperatur historik
+      show_states: true
+      colorize_states: true
+    all_series_config:
+      type: area
+      opacity: 0.1
+      stroke_width: 1
+      group_by:
+        func: avg
+        duration: 1h
+      show:
+        in_header: false
+    series:
+    - entity: sensor.badtemperatur
+  - type: entity
+    entity: sensor.water_meter_total_m3
+    attribute: flow_temperature_c
+    name: Temperatur inkommande vatten
+    icon: mdi:temperature-celsius
+  - type: custom:apexcharts-card
+    header:
+      show: true
+      title: Temperaturer inne
+      show_states: true
+      colorize_states: true
+    all_series_config:
+      stroke_width: 1
+      group_by:
+        func: avg
+        duration: 15m
+      show:
+        in_header: false
+    series:
+    - entity: sensor.ngenic_sensor_kallarrum_temperature
+    - entity: sensor.ngenic_sensor_vardagsrummet_temperature
+      name: Vardagsrummet
+  - type: entities
+    entities:
+    - sensor.tempsensor_frysen_battery
+    - sensor.tempsensor_frysen_humidity
+    - sensor.tempsensor_frysen_pressure
+    - sensor.tempsensor_frysen_temperature
+- theme: Backend-selected
+  title: Belysning
+  path: l
+  icon: mdi:ceiling-light
+  badges: []
+  cards:
+  - type: entities
+    entities:
+    - switch.bastu_och_tvattstall_channel_1
+    - switch.bastu_och_tvattstall_channel_2
+    state_color: true
+  - type: light
+    entity: light.tvattstugan_dimmer
+  - type: entities
+    entities:
+    - entity: switch.shellyplugg_till_lampan
+      name: Lampa pianorum
+    - entity: switch.shellyplug_s_80646f83db50
+    state_color: true
+  - type: light
+    entity: light.badrum_dimmer
+  - type: light
+    entity: light.brasrum_liten
+  - type: light
+    entity: light.shellydimmer2_84cca8acddf4
+  - type: entities
+    entities:
+    - entity: sensor.shellyplugg_till_lampan_power
+- theme: Backend-selected
+  title: Spotpriser
+  path: spotpriser
+  icon: mdi:currency-eur
+  badges: []
+  cards:
+  - type: custom:apexcharts-card
+    graph_span: 48h
+    apex_config:
+      chart:
+        height: 170px
+    show:
+      last_updated: true
+    experimental:
+      color_threshold: true
+    header:
+      title: Elpriser i dag
+      show: true
+      show_states: true
+      colorize_states: true
+    span:
+      start: day
+    now:
+      show: true
+      label: Nu
+    series:
+    - entity: sensor.nordpool_kwh_se3_sek_3_10_025
+      show:
+        extremas: true
+        in_header: raw
+        header_color_threshold: true
+      type: column
+      data_generator: "return entity.attributes.raw_today.map((start, index) => {\n  return [new Date(start[\"start\"]).getTime(),\
+        \ entity.attributes.raw_today[index][\"value\"]];\n});\n"
+      color_threshold:
+      - value: 1
+        color: darkgreen
+        opacity: 1
+      - value: 1
+        color: goldenrod
+      - value: 3
+        color: darkred
+  - type: custom:apexcharts-card
+    graph_span: 48h
+    apex_config:
+      chart:
+        height: 170px
+    show:
+      last_updated: true
+    experimental:
+      color_threshold: true
+    header:
+      title: Elpriser i och imorgon
+      show: true
+      show_states: true
+      colorize_states: true
+    span:
+      start: day
+    now:
+      show: true
+      label: Nu
+    series:
+    - entity: sensor.nordpool_kwh_se3_sek_3_10_025
+      name: Current day
+      type: column
+      opacity: 0.7
+      extend_to: false
+      data_generator: "var a = entity.attributes.raw_today.map((start, index) => {\n  return [new Date(start[\"start\"]).getTime(),\
+        \ entity.attributes.raw_today[index][\"value\"]];\n});\n// add a zero element to prevent a gap at midnight\nvar b\
+        \ = [a[a.length - 1][0] + 3600000, 0];\na.push( b );\nreturn a;\n"
+    - entity: sensor.nordpool_kwh_se3_sek_3_10_025
+      name: Tomorrow
+      type: column
+      data_generator: "return entity.attributes.raw_tomorrow.map((start, index) => {\n  return [new Date(start[\"start\"]).getTime(),\
+        \ entity.attributes.raw_tomorrow[index][\"value\"]];\n});\n"
+- type: panel
+  title: Bilen
+  path: bilen
+  icon: mdi:car
+  sections: []
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: horizontal-stack
+      cards:
+      - type: gauge
+        entity: sensor.otto_von_bismarck_battery
+        name: Battery
+        needle: true
+        min: 0
+        max: 100
+        severity:
+          green: 50
+          yellow: 30
+          red: 20
+      - type: gauge
+        entity: sensor.otto_von_bismarck_range
+        name: Range
+        needle: true
+        min: 0
+        max: 500
+        unit: km
+        severity:
+          green: 200
+          yellow: 100
+          red: 50
+      - type: gauge
+        entity: sensor.otto_von_bismarck_charger_power
+        name: Charging Power
+        needle: true
+        min: 0
+        max: 11
+        unit: kW
+    - type: horizontal-stack
+      cards:
+      - type: entity
+        entity: binary_sensor.otto_von_bismarck_online
+        name: Online
+        icon: mdi:cloud-check
+      - type: entity
+        entity: binary_sensor.otto_von_bismarck_charging
+        name: Charging
+        icon: mdi:battery-charging
+      - type: entity
+        entity: lock.otto_von_bismarck_doors
+        name: Doors
+        icon: mdi:car-door-lock
+      - type: entity
+        entity: binary_sensor.otto_von_bismarck_charger
+        name: Charger
+        icon: mdi:ev-plug-tesla
+    - type: entities
+      title: Charging Information
+      state_color: true
+      entities:
+      - entity: sensor.otto_von_bismarck_battery
+        name: Battery Level
+        icon: mdi:battery
+      - entity: number.otto_von_bismarck_charge_limit
+        name: Charge Limit
+      - entity: sensor.otto_von_bismarck_charger_power
+        name: Charging Power
+      - entity: sensor.otto_von_bismarck_charging_rate
+        name: Charging Rate
+      - entity: sensor.otto_von_bismarck_energy_added
+        name: Energy Added
+      - entity: sensor.otto_von_bismarck_time_charge_complete
+        name: Charge Complete At
+      - entity: number.otto_von_bismarck_charging_amps
+        name: Charging Current
+      - entity: switch.otto_von_bismarck_charger
+        name: Charger Control
+      - type: divider
+      - entity: binary_sensor.otto_von_bismarck_scheduled_charging
+        name: Scheduled Charging
+      - entity: binary_sensor.otto_von_bismarck_scheduled_departure
+        name: Scheduled Departure
+    - type: history-graph
+      title: Battery Level History
+      entities:
+      - entity: sensor.otto_von_bismarck_battery
+      - entity: sensor.otto_von_bismarck_charger_power
+      hours_to_show: 24
+      refresh_interval: 60
+    - type: horizontal-stack
+      cards:
+      - type: thermostat
+        entity: climate.otto_von_bismarck_hvac_climate_system
+      - type: entities
+        title: Temperature
+        entities:
+        - entity: sensor.otto_von_bismarck_temperature_inside
+          name: Inside
+          icon: mdi:thermometer
+        - entity: sensor.otto_von_bismarck_temperature_outside
+          name: Outside
+          icon: mdi:thermometer
+    - type: entities
+      title: Heated Seats
+      entities:
+      - entity: select.otto_von_bismarck_heated_seat_left
+        name: Driver
+        icon: mdi:car-seat-heater
+      - entity: select.otto_von_bismarck_heated_seat_right
+        name: Passenger
+        icon: mdi:car-seat-heater
+      - entity: select.otto_von_bismarck_heated_seat_rear_left
+        name: Rear Left
+        icon: mdi:car-seat-heater
+      - entity: select.otto_von_bismarck_heated_seat_rear_center
+        name: Rear Center
+        icon: mdi:car-seat-heater
+      - entity: select.otto_von_bismarck_heated_seat_rear_right
+        name: Rear Right
+        icon: mdi:car-seat-heater
+      - entity: select.otto_von_bismarck_cabin_overheat_protection
+        name: Overheat Protection
+    - type: entities
+      title: Tire Pressures
+      entities:
+      - entity: sensor.tesla_front_left_tire_pressure
+        name: Front Left
+        icon: mdi:car-tire-alert
+      - entity: sensor.tesla_front_right_tire_pressure
+        name: Front Right
+        icon: mdi:car-tire-alert
+      - entity: sensor.tesla_rear_left_tire_pressure
+        name: Rear Left
+        icon: mdi:car-tire-alert
+      - entity: sensor.tesla_rear_right_tire_pressure
+        name: Rear Right
+        icon: mdi:car-tire-alert
+    - type: entities
+      title: Vehicle Information
+      entities:
+      - entity: sensor.otto_von_bismarck_odometer
+        name: Odometer
+        icon: mdi:counter
+      - entity: sensor.otto_von_bismarck_range
+        name: Estimated Range
+        icon: mdi:map-marker-distance
+      - entity: sensor.otto_von_bismarck_shift_state
+        name: Shift State
+        icon: mdi:car-shift-pattern
+      - entity: binary_sensor.otto_von_bismarck_parking_brake
+        name: Parking Brake
+      - entity: update.otto_von_bismarck_software_update
+        name: Software Update
+      - entity: sensor.otto_von_bismarck_data_last_update_time
+        name: Last Updated
+    - type: entities
+      title: Security & Access
+      state_color: true
+      entities:
+      - entity: lock.otto_von_bismarck_doors
+        name: Door Locks
+      - entity: binary_sensor.otto_von_bismarck_doors
+        name: Doors Status
+      - entity: binary_sensor.otto_von_bismarck_windows
+        name: Windows Status
+      - entity: cover.otto_von_bismarck_windows
+        name: Windows Control
+      - type: divider
+      - entity: cover.otto_von_bismarck_frunk
+        name: Frunk
+      - entity: cover.otto_von_bismarck_trunk
+        name: Trunk
+      - entity: cover.otto_von_bismarck_charger_door
+        name: Charge Port
+      - entity: lock.otto_von_bismarck_charge_port_latch
+        name: Charge Port Lock
+      - type: divider
+      - entity: switch.otto_von_bismarck_sentry_mode
+        name: Sentry Mode
+      - entity: switch.otto_von_bismarck_valet_mode
+        name: Valet Mode
+      - entity: binary_sensor.otto_von_bismarck_user_present
+        name: User Present
+    - type: entities
+      title: Quick Actions
+      entities:
+      - entity: button.otto_von_bismarck_wake_up
+        name: Wake Up
+        icon: mdi:sleep-off
+      - entity: button.otto_von_bismarck_horn
+        name: Horn
+        icon: mdi:bullhorn
+      - entity: button.otto_von_bismarck_flash_lights
+        name: Flash Lights
+        icon: mdi:car-light-high
+      - entity: button.otto_von_bismarck_remote_start
+        name: Remote Start
+        icon: mdi:car-key
+      - entity: button.otto_von_bismarck_force_data_update
+        name: Force Update
+        icon: mdi:refresh
+    - type: map
+      title: Location
+      entities:
+      - entity: device_tracker.otto_von_bismarck_location_tracker
+      hours_to_show: 24
+      aspect_ratio: 16:9
+      default_zoom: 15
+- type: sections
+  max_columns: 4
+  title: Testa
+  path: testa
+  icon: mdi:sun-compass
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: New section

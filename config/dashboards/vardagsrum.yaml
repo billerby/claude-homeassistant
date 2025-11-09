@@ -1,0 +1,21 @@
+strategy:
+  type: original-states
+  areas:
+    order:
+    - vardagsrum
+    hidden:
+    - badrum_kallare
+    - bastun
+    - bathroom
+    - elrum
+    - familjerum
+    - kok
+    - parkering
+    - pianorummet
+    - pingisrummet
+    - pizzerian
+    - toalett_pingisrum
+    - tovas_rum
+    - tvattstuga
+    - apelgarden
+  hide_entities_without_area: true

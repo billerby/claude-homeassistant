@@ -16,12 +16,37 @@ scene: !include scenes.yaml
 
 
 lovelace:
+  mode: yaml
   resources:
-    - url: /config/www/community/lovelace-xiaomi-vacuum-card/xiaomi-vacuum-card.js
+    - url: /hacsfiles/apexcharts-card/apexcharts-card.js
       type: module
-    - url: /root/config/www/community/lovelace-multiple-entity-row/multiple-entity-row.js
+    - url: /hacsfiles/power-flow-card/power-flow-card.js
+      type: module
+    - url: /hacsfiles/config-template-card/config-template-card.js
+      type: module
+    - url: /hacsfiles/lovelace-xiaomi-vacuum-card/xiaomi-vacuum-card.js
+      type: module
+    - url: /hacsfiles/lovelace-multiple-entity-row/multiple-entity-row.js
+      type: module
+    - url: /hacsfiles/lovelace-template-entity-row/template-entity-row.js
+      type: module
     - url: /hacsfiles/battery-state-card/battery-state-card.js
       type: module
+    - url: /local/landroid-card.js
+      type: module
+  dashboards:
+    lovelace-map:
+      mode: yaml
+      title: Map
+      icon: mdi:map
+      show_in_sidebar: true
+      filename: dashboards/map.yaml
+    lovelace-vardagsrum:
+      mode: yaml
+      title: Vardagsrum
+      icon: mdi:sofa
+      show_in_sidebar: true
+      filename: dashboards/vardagsrum.yaml
     
  
 template:
@@ -65,6 +90,47 @@ template:
         {% set current = states('sensor.water_meter_total_m3')|float(0) %}
         {% set start = states('input_number.water_meter_midnight_value')|float(0) %}
         {{ (current - start)|round(3) }}
+
+    # TESLA TIRE PRESSURE: Convert from psi to bar
+    - name: "Tesla Front Left Tire Pressure"
+      unique_id: "tesla_tpms_front_left_bar"
+      unit_of_measurement: "bar"
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+      state: >
+        {% set psi = states('sensor.otto_von_bismarck_tpms_front_left')|float(0) %}
+        {{ (psi * 0.0689476)|round(2) }}
+
+    - name: "Tesla Front Right Tire Pressure"
+      unique_id: "tesla_tpms_front_right_bar"
+      unit_of_measurement: "bar"
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+      state: >
+        {% set psi = states('sensor.otto_von_bismarck_tpms_front_right')|float(0) %}
+        {{ (psi * 0.0689476)|round(2) }}
+
+    - name: "Tesla Rear Left Tire Pressure"
+      unique_id: "tesla_tpms_rear_left_bar"
+      unit_of_measurement: "bar"
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+      state: >
+        {% set psi = states('sensor.otto_von_bismarck_tpms_rear_left')|float(0) %}
+        {{ (psi * 0.0689476)|round(2) }}
+
+    - name: "Tesla Rear Right Tire Pressure"
+      unique_id: "tesla_tpms_rear_right_bar"
+      unit_of_measurement: "bar"
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+      state: >
+        {% set psi = states('sensor.otto_von_bismarck_tpms_rear_right')|float(0) %}
+        {{ (psi * 0.0689476)|round(2) }}
         
     # Creates a human-readable version in liters
     - name: "water_usage_today_liters"
