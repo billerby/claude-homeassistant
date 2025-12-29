@@ -204,6 +204,38 @@ template:
     # EV CHARGING: Cheapest hours - calculated by Node-RED and sent via MQTT
     # See Node-RED flow for calculation logic
 
+    # Septitank levels (migrated from legacy template syntax)
+    - name: "Large septitank level"
+      unique_id: "large_septitank_level"
+      unit_of_measurement: '%'
+      state: >
+        {% set x = states('sensor.stortank') | float %}
+        {% if x is none or x == 'unknown' %}
+          unknown
+        {% else %}
+          {% set min_dist = 2 %}
+          {% set max_dist = 80 %}
+          {% set normalized = ((x - min_dist) / (max_dist - min_dist)) %}
+          {% set inverted = (1 - normalized) * 100 %}
+          {{ inverted | round(0) }}
+        {% endif %}
+
+    - name: "Small septitank level"
+      unique_id: "small_septitank_level"
+      unit_of_measurement: '%'
+      state: >
+        {% set x = states('sensor.lilltank') %}
+        {% if x is none or x == 'unknown' %}
+          unknown
+        {% else %}
+          {% set x = x | float %}
+          {% set min_dist = 170 %}
+          {% set max_dist = 800 %}
+          {% set normalized = ((x - min_dist) / (max_dist - min_dist)) %}
+          {% set inverted = (1 - normalized) * 100 %}
+          {{ inverted | round(0) }}
+        {% endif %}
+
   - binary_sensor:
     - name: "High Water Usage"
       state: "{{ (states('sensor.hourly_water_usage')|float(default=0) + states('input_number.last_water_usage')|float(default=0)) > 0.5 }}"
@@ -426,41 +458,6 @@ sensor:
     source: sensor.input_power_with_efficiency_loss
     name: solar_energy_riemann
     round: 3
-    
-  - platform: template
-    sensors:
-      large_septitank_level:
-        friendly_name: "Large septitank level"
-        unit_of_measurement: '%'
-        value_template: >
-          {% set x = states('sensor.stortank') | float %}
-          {% if x is none or x == 'unknown' %}
-            unknown
-          {% else %}
-            {% set min_dist = 2 %}
-            {% set max_dist = 80 %}
-            {% set normalized = ((x - min_dist) / (max_dist - min_dist)) %}
-            {% set inverted = (1 - normalized) * 100 %}
-            {{ inverted | round(0) }}
-          {% endif %}
-
-  - platform: template
-    sensors:
-      small_septitank_level:
-        friendly_name: "Small septitank level"
-        unit_of_measurement: '%'
-        value_template: >
-          {% set x = states('sensor.lilltank') %}
-          {% if x is none or x == 'unknown' %}
-            unknown
-          {% else %}
-            {% set x = x | float %}
-            {% set min_dist = 170 %}
-            {% set max_dist = 800 %}
-            {% set normalized = ((x - min_dist) / (max_dist - min_dist)) %}
-            {% set inverted = (1 - normalized) * 100 %}
-            {{ inverted | round(0) }}
-          {% endif %}
 
 influxdb:
   api_version: 1

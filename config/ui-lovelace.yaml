@@ -869,3 +869,63 @@ views:
     cards:
     - type: heading
       heading: New section
+- theme: Backend-selected
+  title: UniFi Network
+  path: unifi
+  icon: mdi:router-network
+  badges: []
+  cards:
+  - type: entities
+    title: UniFi Dream Machine
+    state_color: true
+    entities:
+    - device_tracker.dream_machine_special_edition
+  - type: horizontal-stack
+    cards:
+    - type: entities
+      title: UniFi Access Points
+      state_color: true
+      entities:
+      - entity: device_tracker.u6_lite
+        name: U6 Lite
+      - entity: device_tracker.u6_lr
+        name: U6 Long Range
+    - type: entities
+      title: UniFi Camera
+      state_color: true
+      entities:
+      - entity: device_tracker.uvc_g3_flex_7129
+        name: G3 Flex Tracker
+  - type: picture-entity
+    entity: camera.g3_flex_high
+    name: G3 Flex Camera
+    show_state: false
+    show_name: true
+  - type: entities
+    title: UniFi Switches
+    state_color: true
+    entities:
+    - entity: device_tracker.us_8_60w
+      name: US-8-60W
+    - entity: device_tracker.usw_flex_mini
+      name: USW Flex Mini
+    - entity: device_tracker.usw_lite_8_poe
+      name: USW Lite 8 PoE
+    - entity: device_tracker.usw_lite_8_poe_2
+      name: USW Lite 8 PoE #2
+  - type: entities
+    title: Network Controls
+    state_color: true
+    entities:
+    - entity: switch.unifi_network
+      name: UniFi Network
+    - entity: switch.unifi_network_80_till_raspberry_pi
+      name: Network - Raspberry Pi Port
+  - type: entities
+    title: UniFi Client Devices
+    state_color: true
+    entities:
+    - entity: device_tracker.unifi_50_ec_50_0a_75_d3_default
+      name: Client 50:ec:50:0a:75:d3
+    - entity: device_tracker.unifi_default_f4_e2_c6_d1_3f_02
+      name: Client f4:e2:c6:d1:3f:02
