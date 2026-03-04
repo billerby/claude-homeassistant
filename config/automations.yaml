@@ -36,7 +36,7 @@
         before: input_datetime.endast_fore_klockan_22
       - condition: numeric_state
         entity_id: sensor.presence_sensor_fp2_cb1d_light_sensor_light_level
-        below: 40
+        below: 100
       - condition: state
         entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
         state: 'on'
@@ -139,57 +139,6 @@
     entity_id: switch.bastu_och_tvattstall_channel_1
     domain: switch
   mode: single
-- id: '1681899645172'
-  alias: Tänd i tvättstuga - Custom
-  description: Turn lights on/off based on presence with time and illuminance conditions
-  triggers:
-  - trigger: state
-    entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
-    to: 'on'
-    id: presence_detected
-  - trigger: state
-    entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
-    to: 'off'
-    id: presence_cleared
-  conditions: []
-  actions:
-  - choose:
-    - conditions:
-      - condition: or
-        conditions:
-        - condition: trigger
-          id: presence_detected
-        - condition: trigger
-          id: light_turned_off
-      - condition: time
-        after: input_datetime.endast_efter_klockan_06
-        before: input_datetime.endast_fore_klockan_22
-      - condition: numeric_state
-        entity_id: sensor.presence_sensor_fp2_cb1d_light_sensor_light_level
-        below: 40
-      - condition: state
-        entity_id: binary_sensor.presence_sensor_fp2_cb1d_presence_sensor_1
-        state: 'on'
-      sequence:
-      - action: light.turn_on
-        target:
-          entity_id: light.tvattstugan_dimmer
-        data:
-          brightness_pct: 100
-    - conditions:
-      - condition: trigger
-        id: presence_cleared
-      - condition: time
-        after: input_datetime.endast_efter_klockan_06
-        before: input_datetime.endast_fore_klockan_22
-      - condition: state
-        entity_id: light.tvattstugan_dimmer
-        state: 'on'
-      sequence:
-      - action: light.turn_off
-        target:
-          entity_id: light.tvattstugan_dimmer
-  mode: restart
 - id: '1689410124853'
   alias: Högt vattenuttag
   description: ''
@@ -355,7 +304,8 @@
   mode: single
 - id: '1743669780278'
   alias: Varna för ångknappen
-  description: Uses average power consumption to reliably detect when steam mode is left on
+  description: Uses average power consumption to reliably detect when steam mode is
+    left on
   triggers:
   - trigger: state
     entity_id:
@@ -493,16 +443,12 @@
   use_blueprint:
     path: freakshock88/motion_illuminance_activated_entity.yaml
     input:
-      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_iaszone_3
+      motion_sensor: binary_sensor.lumi_lumi_sensor_motion_aq2_occupancy_3
       target_entity: light.tvattstugan_dimmer
       no_motion_wait: input_number.turn_off_familjerum_after_5_minutes
       sunstate_condition: Always
       time_limit_before: input_datetime.endast_fore_klockan_22
       time_limit_after: input_datetime.endast_efter_klockan_06
-# Removed old unreliable steam detection automations (id: 1757844727636, 1757844727637)
-# Now using statistics-based sensor 'binary_sensor.coffee_machine_steam_mode_detected' instead
-# This provides more reliable detection by averaging power over 2 minutes instead of checking
-# instantaneous values which fluctuate due to the heating element cycling on/off
 - id: '1757844727638'
   alias: Rörelse råttfälla
   description: ''
@@ -525,7 +471,8 @@
   mode: single
 - id: '1757844727639'
   alias: Aktivera peak shaving vid tariffstart
-  description: Enables battery peak shaving when tariff period starts (uses off_tariff_period_active sensor)
+  description: Enables battery peak shaving when tariff period starts (uses off_tariff_period_active
+    sensor)
   triggers:
   - trigger: state
     entity_id: binary_sensor.off_tariff_period_active
@@ -541,7 +488,8 @@
   mode: single
 - id: '1757844727640'
   alias: Avaktivera peak shaving vid tariffslut
-  description: Disables battery peak shaving when tariff period ends (uses off_tariff_period_active sensor)
+  description: Disables battery peak shaving when tariff period ends (uses off_tariff_period_active
+    sensor)
   triggers:
   - trigger: state
     entity_id: binary_sensor.off_tariff_period_active
@@ -557,7 +505,8 @@
   mode: single
 - id: '1757844727641'
   alias: Mill Radiator - Start Heating (Off-Tariff)
-  description: Turns on Mill radiator to 21°C during off-tariff periods (when electricity is cheap)
+  description: Turns on Mill radiator to 21°C during off-tariff periods (when electricity
+    is cheap)
   triggers:
   - trigger: state
     entity_id: binary_sensor.off_tariff_period_active
@@ -600,7 +549,8 @@
   mode: single
 - id: '1757844727643'
   alias: Mill Radiator - EMERGENCY Price Shutoff
-  description: Immediately turns off Mill radiator when electricity price exceeds 2 SEK/kWh
+  description: Immediately turns off Mill radiator when electricity price exceeds
+    2 SEK/kWh
   triggers:
   - trigger: numeric_state
     entity_id: sensor.electricity_price_karnvedsgatan_16
@@ -615,7 +565,8 @@
   mode: single
 - id: '1757844727644'
   alias: Mill Radiator - Restore After Price Drop
-  description: Restores normal tariff-based operation when electricity price drops below 2 SEK/kWh
+  description: Restores normal tariff-based operation when electricity price drops
+    below 2 SEK/kWh
   triggers:
   - trigger: numeric_state
     entity_id: sensor.electricity_price_karnvedsgatan_16
