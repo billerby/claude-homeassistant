@@ -16,7 +16,7 @@ scene: !include scenes.yaml
 
 
 lovelace:
-  mode: yaml
+  resource_mode: yaml
   resources:
     - url: /hacsfiles/apexcharts-card/apexcharts-card.js
       type: module
@@ -35,6 +35,12 @@ lovelace:
     - url: /local/landroid-card.js
       type: module
   dashboards:
+    lovelace:
+      mode: yaml
+      filename: ui-lovelace.yaml
+      title: Overview
+      icon: mdi:view-dashboard
+      show_in_sidebar: true
     lovelace-map:
       mode: yaml
       title: Map
@@ -460,10 +466,6 @@ sensor:
     round: 3
 
 influxdb:
-  api_version: 1
-  host: 8f49de54-victoria-metrics 
-  port: 8428
-  max_retries: 3
   measurement_attr: entity_id
   tags_attributes:
     - friendly_name
