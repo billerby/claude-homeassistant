@@ -605,3 +605,21 @@
         data:
           temperature: 18
   mode: single
+- id: '1757844727645'
+  alias: Tibber Reload - Kärnvedsgatan
+  description: >-
+    Workaround for known Tibber integration bug (HA core issue #162395).
+    Reloads the Tibber integration if the power entity has not updated for 10 minutes.
+  triggers:
+  - entity_id:
+    - sensor.power_karnvedsgatan_16
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+    trigger: state
+  actions:
+  - data:
+      entry_id: 14c7468389fdc7c48c9b41a3c989e2a2
+    action: homeassistant.reload_config_entry
+  mode: single
