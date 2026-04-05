@@ -609,17 +609,22 @@
   alias: Tibber Reload - Kärnvedsgatan
   description: >-
     Workaround for known Tibber integration bug (HA core issue #162395).
-    Reloads the Tibber integration if the power entity has not updated for 10 minutes.
+    Checks every 5 minutes if the electricity price sensor is unavailable,
+    and reloads the Tibber integration if so.
   triggers:
-  - entity_id:
-    - sensor.power_karnvedsgatan_16
-    for:
-      hours: 0
-      minutes: 10
-      seconds: 0
-    trigger: state
+  - trigger: time_pattern
+    minutes: /5
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: sensor.electricity_price_karnvedsgatan_16
+      state: unavailable
+    - condition: state
+      entity_id: sensor.electricity_price_karnvedsgatan_16
+      state: unknown
   actions:
-  - data:
+  - action: homeassistant.reload_config_entry
+    data:
       entry_id: 14c7468389fdc7c48c9b41a3c989e2a2
-    action: homeassistant.reload_config_entry
   mode: single

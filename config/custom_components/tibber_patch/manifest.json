@@ -1,0 +1,10 @@
+{
+  "domain": "tibber_patch",
+  "name": "Tibber Watchdog Patch",
+  "version": "1.0.0",
+  "documentation": "https://github.com/home-assistant/core/issues/164527",
+  "dependencies": ["tibber"],
+  "after_dependencies": ["tibber"],
+  "codeowners": [],
+  "iot_class": "cloud_polling"
+}

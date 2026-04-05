@@ -5,6 +5,9 @@ default_config:
 # Enables Python Scripts
 python_script:
 
+# Workaround for pytibber stale token bug (HA core issue #164527)
+tibber_patch:
+
 
 # Text to speech
 tts:
@@ -404,39 +407,37 @@ sensor:
     resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-244e7b0000003fe8/packages/storage/uplink_message?limit=1&order=-received_at
     name: Stortank
     value_template: "{{ value_json.result.uplink_message.decoded_payload.ullage_cm }}"
+    availability: "{{ value_json.result.uplink_message.decoded_payload.ullage_cm is defined }}"
     unit_of_measurement: "cm"
     headers:
       Authorization: !secret septitankar_token2
       Accept: text/event-stream
-      
+
   - platform: rest
     resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-244e7b0000003fe8/packages/storage/uplink_message?limit=1&order=-received_at
     name: Stortank-battery
-    value_template: >-
-      {% if value_json.result.uplink_message.decoded_payload.bat_pct is defined %}
-        {{ value_json.result.uplink_message.decoded_payload.bat_pct }}
-      {% else %}
-        {{ states('sensor.stortank_battery') }}
-      {% endif %}
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.bat_pct }}"
+    availability: "{{ value_json.result.uplink_message.decoded_payload.bat_pct is defined }}"
     unit_of_measurement: "%"
     headers:
       Authorization: !secret septitankar_token2
       Accept: text/event-stream
 
-      
   - platform: rest
     resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-244e7b0000003fe8/packages/storage/uplink_message?limit=1&order=-received_at
     name: Stortank-temperatur
     value_template: "{{ value_json.result.uplink_message.decoded_payload.temp_C }}"
-    unit_of_measurement: "cm"
+    availability: "{{ value_json.result.uplink_message.decoded_payload.temp_C is defined }}"
+    unit_of_measurement: "°C"
     headers:
       Authorization: !secret septitankar_token2
-      Accept: text/event-stream      
-      
+      Accept: text/event-stream
+
   - platform: rest
     resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-24e124713e115756/packages/storage/uplink_message?limit=1&order=-received_at
     name: Lilltank
     value_template: "{{ value_json.result.uplink_message.decoded_payload.distance }}"
+    availability: "{{ value_json.result.uplink_message.decoded_payload.distance is defined }}"
     unit_of_measurement: "mm"
     headers:
       Authorization: !secret septitankar_token2
@@ -446,6 +447,7 @@ sensor:
     resource: https://eu1.cloud.thethings.network/api/v3/as/applications/septitankar/devices/eui-24e124713e115756/packages/storage/uplink_message?limit=1&order=-received_at
     name: Lilltank-battery
     value_template: "{{ value_json.result.uplink_message.decoded_payload.battery }}"
+    availability: "{{ value_json.result.uplink_message.decoded_payload.battery is defined }}"
     unit_of_measurement: "%"
     headers:
       Authorization: !secret septitankar_token2
