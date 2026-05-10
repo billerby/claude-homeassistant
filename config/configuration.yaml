@@ -317,6 +317,11 @@ input_boolean:
     icon: mdi:ev-station
     initial: false
 
+  apelgarden_warmup:
+    name: Apelgården warmup (22°C)
+    icon: mdi:home-thermometer
+    initial: false
+
 input_number:
   last_water_usage:
     name: Last Water Usage

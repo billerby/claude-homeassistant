@@ -628,3 +628,51 @@
     data:
       entry_id: 14c7468389fdc7c48c9b41a3c989e2a2
   mode: single
+- id: '1746864000000'
+  alias: Apelgården warmup till 22°C
+  description: Slå på/av Eriks luftvärmepump och båda Ebeco-golvvärmeunits via switch
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.apelgarden_warmup
+    to: 'on'
+    id: warmup_on
+  - trigger: state
+    entity_id: input_boolean.apelgarden_warmup
+    to: 'off'
+    id: warmup_off
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: warmup_on
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id:
+          - climate.erik_s_device
+          - climate.stora_badrummet
+          - climate.lilla_badrummet
+        data:
+          hvac_mode: heat
+      - action: climate.set_temperature
+        target:
+          entity_id:
+          - climate.erik_s_device
+          - climate.stora_badrummet
+          - climate.lilla_badrummet
+        data:
+          temperature: 22
+    - conditions:
+      - condition: trigger
+        id: warmup_off
+      sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id:
+          - climate.erik_s_device
+          - climate.stora_badrummet
+          - climate.lilla_badrummet
+        data:
+          hvac_mode: 'off'
+  mode: single

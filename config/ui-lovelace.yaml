@@ -412,6 +412,11 @@ views:
   path: apelgarden
   badges: []
   cards:
+  - type: entities
+    title: Snabbåtgärder
+    entities:
+    - entity: input_boolean.apelgarden_warmup
+      name: Värm upp till 22°C (luftvärmepump + golvvärme)
   - type: gauge
     entity: sensor.large_septitank_level
     severity:
@@ -443,6 +448,22 @@ views:
     - entity: sensor.stora_badrummet_room_temperature
       name: Room Temperature
     title: 'Stora badrummet '
+  - type: thermostat
+    entity: climate.lilla_badrummet
+    features:
+    - type: climate-hvac-modes
+      hvac_modes:
+      - heat
+      - 'off'
+  - type: entities
+    entities:
+    - entity: sensor.lilla_badrummet_energy_usage
+      name: Energy Usage
+    - entity: sensor.lilla_badrummet_floor_temperature
+      name: Floor Temperature
+    - entity: sensor.lilla_badrummet_room_temperature
+      name: Room Temperature
+    title: 'Lilla badrummet'
   - type: grid
     square: false
     columns: 1
