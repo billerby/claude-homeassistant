@@ -880,6 +880,141 @@ views:
       hours_to_show: 24
       aspect_ratio: 16:9
       default_zoom: 15
+- type: panel
+  title: Jean-Luc
+  path: jean-luc
+  icon: mdi:car-electric
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: horizontal-stack
+      cards:
+      - type: gauge
+        entity: sensor.jean_luc_battery
+        name: Battery
+        needle: true
+        min: 0
+        max: 100
+        severity:
+          green: 50
+          yellow: 30
+          red: 20
+      - type: gauge
+        entity: sensor.jean_luc_battery_autonomy
+        name: Range
+        needle: true
+        min: 0
+        max: 400
+        unit: km
+        severity:
+          green: 200
+          yellow: 100
+          red: 50
+      - type: gauge
+        entity: sensor.jean_luc_admissible_charging_power
+        name: Charging Power
+        needle: true
+        min: 0
+        max: 11
+        unit: kW
+    - type: horizontal-stack
+      cards:
+      - type: entity
+        entity: binary_sensor.jean_luc_plug
+        name: Plug
+        icon: mdi:ev-plug-type2
+      - type: entity
+        entity: binary_sensor.jean_luc_charging
+        name: Charging
+        icon: mdi:battery-charging
+      - type: entity
+        entity: binary_sensor.jean_luc_hvac
+        name: HVAC
+        icon: mdi:air-conditioner
+      - type: entity
+        entity: sensor.jean_luc_plug_state
+        name: Plug State
+        icon: mdi:power-plug
+    - type: entities
+      title: Charging Information
+      state_color: true
+      entities:
+      - entity: sensor.jean_luc_battery
+        name: Battery Level
+        icon: mdi:battery
+      - entity: sensor.jean_luc_charge_state
+        name: Charge State
+      - entity: sensor.jean_luc_charging_mode
+        name: Charging Mode
+      - entity: sensor.jean_luc_admissible_charging_power
+        name: Charging Power
+      - entity: sensor.jean_luc_charging_remaining_time
+        name: Time Remaining
+      - entity: sensor.jean_luc_battery_available_energy
+        name: Available Energy
+      - type: divider
+      - entity: number.jean_luc_target_charge_level
+        name: Target Charge Level
+      - entity: number.jean_luc_minimum_charge_level
+        name: Minimum Charge Level
+      - entity: sensor.jean_luc_hvac_soc_threshold
+        name: HVAC SoC Threshold
+    - type: history-graph
+      title: Battery Level History
+      entities:
+      - entity: sensor.jean_luc_battery
+      - entity: sensor.jean_luc_admissible_charging_power
+      hours_to_show: 24
+      refresh_interval: 60
+    - type: entities
+      title: Temperature
+      entities:
+      - entity: sensor.jean_luc_battery_temperature
+        name: Battery
+        icon: mdi:thermometer
+      - entity: sensor.jean_luc_outside_temperature
+        name: Outside
+        icon: mdi:thermometer
+    - type: entities
+      title: Vehicle Information
+      entities:
+      - entity: sensor.jean_luc_mileage
+        name: Mileage
+        icon: mdi:counter
+      - entity: sensor.jean_luc_battery_autonomy
+        name: Estimated Range
+        icon: mdi:map-marker-distance
+      - entity: sensor.last_battery_activity
+        name: Last Battery Update
+        icon: mdi:clock-outline
+      - entity: sensor.last_hvac_activity
+        name: Last HVAC Update
+        icon: mdi:clock-outline
+      - entity: sensor.last_location_activity
+        name: Last Location Update
+        icon: mdi:clock-outline
+    - type: entities
+      title: Quick Actions
+      entities:
+      - entity: button.jean_luc_start_charge
+        name: Start Charge
+        icon: mdi:battery-charging
+      - entity: button.jean_luc_start_air_conditioner
+        name: Start Air Conditioner
+        icon: mdi:air-conditioner
+      - entity: button.jean_luc_flash_lights
+        name: Flash Lights
+        icon: mdi:car-light-high
+      - entity: button.jean_luc_sound_horn
+        name: Sound Horn
+        icon: mdi:bullhorn
+    - type: map
+      title: Location
+      entities:
+      - entity: device_tracker.jean_luc_location
+      hours_to_show: 24
+      aspect_ratio: 16:9
+      default_zoom: 15
 - type: sections
   max_columns: 4
   title: Testa
