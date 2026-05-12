@@ -252,18 +252,19 @@ template:
     - name: "Coffee Machine Steam Mode"
       state: "{{ states('input_boolean.coffee_steam_mode_active') == 'on' }}"
 
-    # More reliable steam mode detection using average power over 2 minutes
+    # Steam mode detection using 15-min average power.
+    # Silvia heater cycles ~35s ON every ~6min in steam mode (165°C target) → avg ~120W.
+    # In brew mode (95°C target) the heater barely cycles once warm → avg ~0W.
+    # 30-min "warmed up" gate prevents false positives during the initial warmup burst.
     - name: "Coffee Machine Steam Mode Detected"
       unique_id: "coffee_machine_steam_mode_detected"
       device_class: heat
       state: >
-        {% set current_power = states('sensor.shellyplugg_till_lampan_power')|float(0) %}
-        {% set avg_power = states('sensor.coffee_machine_power_2min_avg')|float(0) %}
-        {% set machine_on_time = now() - states.automation.satt_pa_kaffemaskin.attributes.last_triggered if states.automation.satt_pa_kaffemaskin.attributes.last_triggered else timedelta(hours=24) %}
-        {# Machine must be on for at least 5 minutes to avoid startup detection #}
-        {% set startup_period_passed = machine_on_time > timedelta(minutes=5) %}
-        {# Steam mode: average power over 1000W for 2 minutes OR current power sustained over 1100W #}
-        {{ startup_period_passed and (avg_power > 1000 or current_power > 1100) }}
+        {% set avg = states('sensor.coffee_machine_power_15min_avg')|float(0) %}
+        {% set sw = states.switch.shellyplugg_till_lampan %}
+        {% set on_since = sw.last_changed if sw and sw.state == 'on' else now() %}
+        {% set warmed_up = (now() - on_since) > timedelta(minutes=30) %}
+        {{ warmed_up and avg > 50 }}
 
     # EV CHARGING: Check if we're in off-tariff period
     - name: "Off Tariff Period Active"
@@ -377,13 +378,13 @@ mqtt:
 sensor:
   # Statistics sensor for coffee machine power averaging
   - platform: statistics
-    name: "Coffee Machine Power 2min Avg"
-    unique_id: "coffee_machine_power_2min_avg"
+    name: "Coffee Machine Power 15min Avg"
+    unique_id: "coffee_machine_power_15min_avg"
     entity_id: sensor.shellyplugg_till_lampan_power
     state_characteristic: mean
     max_age:
-      minutes: 2
-    sampling_size: 400
+      minutes: 15
+    sampling_size: 3000
 
   - platform: command_line
     name: pytibber_version

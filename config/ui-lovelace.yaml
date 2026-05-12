@@ -911,12 +911,16 @@ views:
           yellow: 100
           red: 50
       - type: gauge
-        entity: sensor.jean_luc_admissible_charging_power
-        name: Charging Power
+        entity: number.jean_luc_target_charge_level
+        name: Target
         needle: true
         min: 0
-        max: 11
-        unit: kW
+        max: 100
+        unit: '%'
+        severity:
+          green: 80
+          yellow: 50
+          red: 0
     - type: horizontal-stack
       cards:
       - type: entity
@@ -963,7 +967,7 @@ views:
       title: Battery Level History
       entities:
       - entity: sensor.jean_luc_battery
-      - entity: sensor.jean_luc_admissible_charging_power
+      - entity: sensor.jean_luc_battery_autonomy
       hours_to_show: 24
       refresh_interval: 60
     - type: entities
@@ -984,15 +988,6 @@ views:
       - entity: sensor.jean_luc_battery_autonomy
         name: Estimated Range
         icon: mdi:map-marker-distance
-      - entity: sensor.last_battery_activity
-        name: Last Battery Update
-        icon: mdi:clock-outline
-      - entity: sensor.last_hvac_activity
-        name: Last HVAC Update
-        icon: mdi:clock-outline
-      - entity: sensor.last_location_activity
-        name: Last Location Update
-        icon: mdi:clock-outline
     - type: entities
       title: Quick Actions
       entities:
