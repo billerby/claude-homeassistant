@@ -26,11 +26,41 @@
 # continuous telemetry. Short trips may be smeared by polling gaps.
 # =============================================================================
 
-# --- Phase 1: degradation tracking -------------------------------------------
-# Trigger-based sensor that snapshots usable battery capacity whenever the
-# pack hits 100% SoC. Over months/years this is the degradation curve.
-# Updates only on full charge events, so values are sparse but meaningful.
+# --- Phase 2: charging session helpers ---------------------------------------
+# Persistent state for the in-progress session. Updated on plug-on (snapshot
+# start values) and during charging (rolling peak power). Frozen on plug-off
+# when the trigger sensors below read them and compute the session summary.
+input_datetime:
+  jean_luc_session_started_at:
+    name: Jean-Luc session started at
+    has_date: true
+    has_time: true
+
+input_number:
+  jean_luc_session_soc_start:
+    name: Jean-Luc session SoC start
+    min: 0
+    max: 100
+    step: 0.1
+    unit_of_measurement: "%"
+  jean_luc_session_energy_start:
+    name: Jean-Luc session energy start
+    min: 0
+    max: 200
+    step: 0.01
+    unit_of_measurement: "kWh"
+  jean_luc_session_peak_kw:
+    name: Jean-Luc session peak kW
+    min: 0
+    max: 350
+    step: 0.1
+    unit_of_measurement: "kW"
+
+# --- Templates: degradation tracker + last-session summary sensors -----------
 template:
+  # Phase 1: degradation tracking.
+  # Snapshot usable battery capacity whenever the pack hits 100% SoC. Sparse
+  # by design — one point per full charge. Slope of this trend = degradation.
   - trigger:
       - platform: numeric_state
         entity_id: sensor.jean_luc_battery
@@ -46,20 +76,114 @@ template:
           mileage_km: "{{ states('sensor.jean_luc_mileage') | float(0) }}"
           recorded_at: "{{ now().isoformat() }}"
 
-# --- Phase 2: charging session detection (placeholder, see TODO) -------------
-# Trigger-based template sensor that captures one row per charging session
-# when binary_sensor.jean_luc_charging flips on -> off.
-#
-# template:
-#   - trigger:
-#       - platform: state
-#         entity_id: binary_sensor.jean_luc_charging
-#         from: "on"
-#         to: "off"
-#     sensor:
-#       - name: "Jean-Luc last charge kWh added"
-#         ...
+  # Phase 2: last-charging-session summary.
+  # Fires when charging stops (on -> off). Each sensor below becomes its own
+  # VM metric, with one data point per session, so Grafana can plot session
+  # history over time and aggregate (monthly kWh, peak distribution, etc.).
+  - trigger:
+      - platform: state
+        entity_id: binary_sensor.jean_luc_charging
+        from: "on"
+        to: "off"
+    sensor:
+      - name: "Jean-Luc last session kWh added"
+        unique_id: jean_luc_last_session_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: measurement
+        state: >-
+          {% set start = states('input_number.jean_luc_session_energy_start') | float(0) %}
+          {% set end = states('sensor.jean_luc_battery_available_energy') | float(0) %}
+          {{ ((end - start) if (start > 0 and end > 0) else 0) | round(2) }}
 
-# --- Phase 3: trip detection (placeholder, see TODO) -------------------------
+      - name: "Jean-Luc last session duration"
+        unique_id: jean_luc_last_session_duration_min
+        unit_of_measurement: "min"
+        device_class: duration
+        state_class: measurement
+        state: >-
+          {% set ts = state_attr('input_datetime.jean_luc_session_started_at', 'timestamp') | float(0) %}
+          {{ (((now().timestamp() - ts) / 60) if ts > 0 else 0) | round(0) }}
+
+      - name: "Jean-Luc last session peak kW"
+        unique_id: jean_luc_last_session_peak_kw
+        unit_of_measurement: "kW"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('input_number.jean_luc_session_peak_kw') | float(0) }}"
+
+      - name: "Jean-Luc last session SoC start"
+        unique_id: jean_luc_last_session_soc_start
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: "{{ states('input_number.jean_luc_session_soc_start') | float(0) }}"
+
+      - name: "Jean-Luc last session SoC end"
+        unique_id: jean_luc_last_session_soc_end
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: "{{ states('sensor.jean_luc_battery') | float(0) }}"
+
+# --- Phase 2 automations: session lifecycle ----------------------------------
+automation:
+  # Plug-on: snapshot starting conditions into the helpers.
+  - id: jean_luc_session_start
+    alias: "Jean-Luc: charging session start"
+    description: "Capture start time, SoC, and available energy when charging begins."
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.jean_luc_charging
+        from: "off"
+        to: "on"
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.jean_luc_session_started_at
+        data:
+          timestamp: "{{ now().timestamp() }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_session_soc_start
+        data:
+          value: "{{ states('sensor.jean_luc_battery') | float(0) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_session_energy_start
+        data:
+          value: "{{ states('sensor.jean_luc_battery_available_energy') | float(0) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_session_peak_kw
+        data:
+          value: 0
+
+  # During charging: maintain rolling max of admissible_charging_power.
+  # Triggers on every reported value change; ignores updates outside a session.
+  - id: jean_luc_session_track_peak
+    alias: "Jean-Luc: track session peak charging power"
+    description: "Rolling max of admissible charging power while a session is active."
+    mode: queued
+    max: 20
+    trigger:
+      - platform: state
+        entity_id: sensor.jean_luc_admissible_charging_power
+    condition:
+      - condition: state
+        entity_id: binary_sensor.jean_luc_charging
+        state: "on"
+      - condition: template
+        value_template: >-
+          {{ states('sensor.jean_luc_admissible_charging_power') | float(-1) >= 0 }}
+    action:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_session_peak_kw
+        data:
+          value: >-
+            {{ [states('input_number.jean_luc_session_peak_kw') | float(0),
+                states('sensor.jean_luc_admissible_charging_power') | float(0)] | max }}
+
+# --- Phase 3: trip detection (placeholder, see issue #2) ---------------------
 # Trigger on plug-removed + movement, end on stop. Capture distance,
 # energy used, start/end coords, duration, efficiency.
