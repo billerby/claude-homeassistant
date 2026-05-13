@@ -1,0 +1,65 @@
+# =============================================================================
+# Jean-Luc — Renault 5 E-Tech telemetry & analytics
+# =============================================================================
+# TeslaMate-style derived data built on top of the core Renault integration.
+#
+# Source entities (provided by integration `renault`):
+#   sensor.jean_luc_battery                  SoC %
+#   sensor.jean_luc_battery_autonomy         Estimated range, km
+#   sensor.jean_luc_battery_available_energy Usable energy, kWh
+#   sensor.jean_luc_battery_temperature      °C
+#   sensor.jean_luc_outside_temperature      °C
+#   sensor.jean_luc_mileage                  Odometer, km
+#   sensor.jean_luc_charge_state             API state string
+#   sensor.jean_luc_charging_mode
+#   sensor.jean_luc_admissible_charging_power kW
+#   sensor.jean_luc_charging_remaining_time  minutes
+#   sensor.jean_luc_plug_state
+#   sensor.jean_luc_hvac_soc_threshold
+#   binary_sensor.jean_luc_charging          on/off
+#   binary_sensor.jean_luc_plug              on/off
+#   binary_sensor.jean_luc_hvac              on/off
+#   device_tracker.jean_luc_location         GPS
+#
+# Renault's Kamereon API is poll-based and only reports when the car wakes up,
+# so derived sessions/trips are reconstructed from snapshot deltas rather than
+# continuous telemetry. Short trips may be smeared by polling gaps.
+# =============================================================================
+
+# --- Phase 1: degradation tracking -------------------------------------------
+# Trigger-based sensor that snapshots usable battery capacity whenever the
+# pack hits 100% SoC. Over months/years this is the degradation curve.
+# Updates only on full charge events, so values are sparse but meaningful.
+template:
+  - trigger:
+      - platform: numeric_state
+        entity_id: sensor.jean_luc_battery
+        above: 99.5
+    sensor:
+      - name: "Jean-Luc capacity at full"
+        unique_id: jean_luc_capacity_at_full
+        unit_of_measurement: "kWh"
+        device_class: energy_storage
+        state_class: measurement
+        state: "{{ states('sensor.jean_luc_battery_available_energy') | float(0) }}"
+        attributes:
+          mileage_km: "{{ states('sensor.jean_luc_mileage') | float(0) }}"
+          recorded_at: "{{ now().isoformat() }}"
+
+# --- Phase 2: charging session detection (placeholder, see TODO) -------------
+# Trigger-based template sensor that captures one row per charging session
+# when binary_sensor.jean_luc_charging flips on -> off.
+#
+# template:
+#   - trigger:
+#       - platform: state
+#         entity_id: binary_sensor.jean_luc_charging
+#         from: "on"
+#         to: "off"
+#     sensor:
+#       - name: "Jean-Luc last charge kWh added"
+#         ...
+
+# --- Phase 3: trip detection (placeholder, see TODO) -------------------------
+# Trigger on plug-removed + movement, end on stop. Capture distance,
+# energy used, start/end coords, duration, efficiency.
