@@ -255,19 +255,24 @@ template:
     - name: "Coffee Machine Steam Mode"
       state: "{{ states('input_boolean.coffee_steam_mode_active') == 'on' }}"
 
-    # Steam mode detection using 15-min average power.
-    # Silvia heater cycles ~35s ON every ~6min in steam mode (165°C target) → avg ~120W.
-    # In brew mode (95°C target) the heater barely cycles once warm → avg ~0W.
-    # 30-min "warmed up" gate prevents false positives during the initial warmup burst.
+    # Steam mode detection: must see both sustained average power (15-min mean)
+    # AND a recent heater pulse (8-min max). The 15-min mean alone has trailing
+    # decay after a single warm-up burst that kept the sensor on for 20+ min
+    # post-shutdown, so the 8-min max condition is the kill-switch — it drops
+    # to 0 within 8 min of the last pulse, ending the detection cleanly.
+    # Silvia heater cycles ~35s ON every ~6min in steam mode (165°C target):
+    # in steady steam mode the 8-min window always contains at least one pulse.
+    # 30-min warm-up gate still prevents tripping during the initial heating burst.
     - name: "Coffee Machine Steam Mode Detected"
       unique_id: "coffee_machine_steam_mode_detected"
       device_class: heat
       state: >
         {% set avg = states('sensor.coffee_machine_power_15min_avg')|float(0) %}
+        {% set peak = states('sensor.coffee_machine_power_8min_max')|float(0) %}
         {% set sw = states.switch.shellyplugg_till_lampan %}
         {% set on_since = sw.last_changed if sw and sw.state == 'on' else now() %}
         {% set warmed_up = (now() - on_since) > timedelta(minutes=30) %}
-        {{ warmed_up and avg > 50 }}
+        {{ warmed_up and avg > 50 and peak > 200 }}
 
     # EV CHARGING: Check if we're in off-tariff period
     - name: "Off Tariff Period Active"
@@ -387,6 +392,18 @@ sensor:
     state_characteristic: mean
     max_age:
       minutes: 15
+    sampling_size: 3000
+
+  # Recent-pulse detector: max power in the last 8 min. Used together with the
+  # 15-min average so the steam-mode detector flips off within 8 min of the last
+  # heater pulse instead of riding 12-15 min of trailing average decay.
+  - platform: statistics
+    name: "Coffee Machine Power 8min Max"
+    unique_id: "coffee_machine_power_8min_max"
+    entity_id: sensor.shellyplugg_till_lampan_power
+    state_characteristic: value_max
+    max_age:
+      minutes: 8
     sampling_size: 3000
 
   - platform: command_line
