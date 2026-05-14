@@ -24,6 +24,35 @@ are kept (VM allows this).
 
 ## Dashboards
 
+### `jean_luc_visited.json` — where Jean-Luc has been
+
+TeslaMate-style "Visited" map plus aggregate stats. The map plots one
+marker per reported GPS snapshot and connects consecutive snapshots
+with straight line segments. **The lines are not real driven routes**
+— Renault Kamereon only reports location when the car wakes up
+(typically 1-2 points per drive), so a segment is a straight chord
+between two snapshots, not the actual road taken. Documented in the
+panel description.
+
+The map reads `sensor.jean_luc_latitude_value` and
+`sensor.jean_luc_longitude_value`, two trigger-based template sensors
+defined in `config/packages/jean_luc.yaml` that mirror
+`device_tracker.jean_luc_location.attributes.{latitude,longitude}`
+into numeric form for VictoriaMetrics ingest. **No backfill** —
+positions reported before the package was deployed do not appear.
+
+Stats row (aggregated over the dashboard time range):
+- **Mileage** = `last(mileage) - first(mileage)`
+- **Total Energy added** = `sum_over_time(last_session_kwh_added)`
+- **Total Energy used** = `sum_over_time(last_trip_energy_used)`
+- **Efficiency** = `total energy used / mileage × 100` (kWh/100km)
+
+The two `sum_over_time` aggregates rely on HA's InfluxDB integration
+writing only on state change (its default), so each session/trip
+contributes one data point in VM. If you see inflated values, that
+assumption may not hold and the stat panels need a different shape
+(cumulative HA helper sensor instead).
+
 ### `jean_luc.json` — Renault 5 E-Tech
 
 TeslaMate-lite dashboard for the `renault` integration. Reads

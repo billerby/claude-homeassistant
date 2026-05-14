@@ -1,0 +1,267 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Where Jean-Luc has been over the selected time range. Map shows reported GPS positions (markers) and straight-line segments between consecutive reports — note the segments are NOT real driven routes, since the Renault Kamereon API only reports location when the car wakes up (typically 1-2 points per drive). The stat row aggregates over the dashboard time range.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Markers = reported GPS snapshots. Lines = straight segments between consecutive snapshots (NOT real routes — Renault polls sparsely). Empty until the car next wakes up after the package was deployed.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}
+        }
+      },
+      "gridPos": {"h": 18, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "basemap": {"config": {}, "name": "Layer 0", "type": "default"},
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showMeasure": false,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "type": "route",
+            "name": "Trail",
+            "config": {
+              "style": {
+                "color": {"fixed": "blue"},
+                "lineWidth": 2,
+                "opacity": 0.6
+              }
+            },
+            "location": {
+              "mode": "coords",
+              "latitude": "Value #A",
+              "longitude": "Value #B"
+            },
+            "tooltip": false
+          },
+          {
+            "type": "markers",
+            "name": "Positions",
+            "config": {
+              "showLegend": false,
+              "style": {
+                "color": {"fixed": "dark-blue"},
+                "opacity": 0.7,
+                "rotation": {"fixed": 0, "max": 360, "min": -360, "mode": "mod"},
+                "size": {"fixed": 6, "max": 15, "min": 2},
+                "symbol": {"fixed": "img/icons/marker/circle.svg", "mode": "fixed"},
+                "textConfig": {"fontSize": 12, "offsetX": 0, "offsetY": 0, "textAlign": "center", "textBaseline": "middle"}
+              }
+            },
+            "location": {
+              "mode": "coords",
+              "latitude": "Value #A",
+              "longitude": "Value #B"
+            },
+            "tooltip": true
+          }
+        ],
+        "tooltip": {"mode": "details"},
+        "view": {"allLayers": true, "id": "fit", "lat": 59.3, "lon": 18.07, "zoom": 6}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "{__name__=\"sensor.jean_luc_latitude_value\"}",
+          "legendFormat": "lat",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "{__name__=\"sensor.jean_luc_longitude_value\"}",
+          "legendFormat": "lon",
+          "refId": "B"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {"byField": "Time", "mode": "outer"}
+        }
+      ],
+      "title": "Visited",
+      "type": "geomap"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Kilometers driven during the selected time range (odometer delta).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]},
+          "unit": "lengthkm",
+          "decimals": 0
+        }
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 18},
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "last_over_time({__name__=\"sensor.jean_luc_mileage_value\"}[$__range]) - first_over_time({__name__=\"sensor.jean_luc_mileage_value\"}[$__range])",
+          "legendFormat": "Mileage",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "title": "Mileage",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Sum of kWh added across all completed charging sessions in the time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "kwatth",
+          "decimals": 0
+        }
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 18},
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum_over_time({__name__=\"sensor.jean_luc_last_session_kwh_added_value\"}[$__range])",
+          "legendFormat": "Energy added",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "title": "Total Energy added",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Sum of kWh used across all completed trips in the time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "yellow", "value": null}]},
+          "unit": "kwatth",
+          "decimals": 0
+        }
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 18},
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "sum_over_time({__name__=\"sensor.jean_luc_last_trip_energy_used_value\"}[$__range])",
+          "legendFormat": "Energy used",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "title": "Total Energy used",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Average consumption: total kWh used ÷ total km driven, scaled to per-100-km. Lower is better.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 18},
+              {"color": "red", "value": 22}
+            ]
+          },
+          "unit": "none",
+          "decimals": 1
+        }
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 18},
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "(sum_over_time({__name__=\"sensor.jean_luc_last_trip_energy_used_value\"}[$__range]) / (last_over_time({__name__=\"sensor.jean_luc_mileage_value\"}[$__range]) - first_over_time({__name__=\"sensor.jean_luc_mileage_value\"}[$__range]))) * 100",
+          "legendFormat": "kWh/100km",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "title": "Efficiency (kWh/100km)",
+      "type": "stat"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["car", "renault", "jean-luc", "ev", "map"],
+  "templating": {"list": []},
+  "time": {"from": "now-90d", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Jean-Luc — Visited",
+  "uid": "jean-luc-visited",
+  "version": 1,
+  "weekStart": "",
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus / VictoriaMetrics",
+      "description": "Datasource that holds HA-published metrics",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+    {"type": "panel", "id": "geomap", "name": "Geomap", "version": ""},
+    {"type": "panel", "id": "stat", "name": "Stat", "version": ""}
+  ]
+}
