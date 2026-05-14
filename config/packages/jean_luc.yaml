@@ -26,17 +26,25 @@
 # continuous telemetry. Short trips may be smeared by polling gaps.
 # =============================================================================
 
-# --- Phase 2: charging session helpers ---------------------------------------
-# Persistent state for the in-progress session. Updated on plug-on (snapshot
-# start values) and during charging (rolling peak power). Frozen on plug-off
-# when the trigger sensors below read them and compute the session summary.
+# --- Phase 2 & 3: helpers ----------------------------------------------------
+# Persistent state for the in-progress charging session and trip. Updated by
+# automations on lifecycle transitions; frozen and read by trigger sensors.
+input_boolean:
+  jean_luc_trip_in_progress:
+    name: Jean-Luc trip in progress
+
 input_datetime:
   jean_luc_session_started_at:
     name: Jean-Luc session started at
     has_date: true
     has_time: true
+  jean_luc_trip_started_at:
+    name: Jean-Luc trip started at
+    has_date: true
+    has_time: true
 
 input_number:
+  # --- Phase 2: charging session helpers ---
   jean_luc_session_soc_start:
     name: Jean-Luc session SoC start
     min: 0
@@ -55,6 +63,26 @@ input_number:
     max: 350
     step: 0.1
     unit_of_measurement: "kW"
+
+  # --- Phase 3: trip helpers ---
+  jean_luc_trip_mileage_start:
+    name: Jean-Luc trip mileage start
+    min: 0
+    max: 999999
+    step: 0.1
+    unit_of_measurement: "km"
+  jean_luc_trip_soc_start:
+    name: Jean-Luc trip SoC start
+    min: 0
+    max: 100
+    step: 0.1
+    unit_of_measurement: "%"
+  jean_luc_trip_energy_start:
+    name: Jean-Luc trip energy start
+    min: 0
+    max: 200
+    step: 0.01
+    unit_of_measurement: "kWh"
 
 # --- Templates: degradation tracker + last-session summary sensors -----------
 template:
@@ -124,7 +152,75 @@ template:
         state_class: measurement
         state: "{{ states('sensor.jean_luc_battery') | float(0) }}"
 
-# --- Phase 2 automations: session lifecycle ----------------------------------
+  # Phase 3: last-trip summary.
+  # Fires when input_boolean.jean_luc_trip_in_progress flips on -> off, which
+  # the trip-end automations do (mileage stable for 20 min, or plug-in event).
+  # Each sensor below becomes its own VM metric, one data point per trip.
+  - trigger:
+      - platform: state
+        entity_id: input_boolean.jean_luc_trip_in_progress
+        from: "on"
+        to: "off"
+    sensor:
+      - name: "Jean-Luc last trip distance"
+        unique_id: jean_luc_last_trip_distance
+        unit_of_measurement: "km"
+        device_class: distance
+        state_class: measurement
+        state: >-
+          {% set start = states('input_number.jean_luc_trip_mileage_start') | float(0) %}
+          {% set end = states('sensor.jean_luc_mileage') | float(0) %}
+          {{ ((end - start) if (start > 0 and end >= start) else 0) | round(1) }}
+
+      - name: "Jean-Luc last trip duration"
+        unique_id: jean_luc_last_trip_duration_min
+        unit_of_measurement: "min"
+        device_class: duration
+        state_class: measurement
+        state: >-
+          {% set ts = state_attr('input_datetime.jean_luc_trip_started_at', 'timestamp') | float(0) %}
+          {{ (((now().timestamp() - ts) / 60) if ts > 0 else 0) | round(0) }}
+
+      - name: "Jean-Luc last trip energy used"
+        unique_id: jean_luc_last_trip_energy_kwh
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: measurement
+        state: >-
+          {% set start = states('input_number.jean_luc_trip_energy_start') | float(-1) %}
+          {% set end = states('sensor.jean_luc_battery_available_energy') | float(-1) %}
+          {{ ((start - end) if (start > 0 and end >= 0 and start >= end) else 0) | round(2) }}
+
+      - name: "Jean-Luc last trip SoC start"
+        unique_id: jean_luc_last_trip_soc_start
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: "{{ states('input_number.jean_luc_trip_soc_start') | float(0) }}"
+
+      - name: "Jean-Luc last trip SoC end"
+        unique_id: jean_luc_last_trip_soc_end
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: "{{ states('sensor.jean_luc_battery') | float(0) }}"
+
+      - name: "Jean-Luc last trip efficiency"
+        unique_id: jean_luc_last_trip_efficiency
+        unit_of_measurement: "kWh/100km"
+        state_class: measurement
+        state: >-
+          {% set m_start = states('input_number.jean_luc_trip_mileage_start') | float(0) %}
+          {% set m_end = states('sensor.jean_luc_mileage') | float(0) %}
+          {% set e_start = states('input_number.jean_luc_trip_energy_start') | float(-1) %}
+          {% set e_end = states('sensor.jean_luc_battery_available_energy') | float(-1) %}
+          {% set distance = m_end - m_start %}
+          {% set energy = e_start - e_end %}
+          {% if distance > 0.1 and energy > 0 %}
+            {{ (energy * 100 / distance) | round(2) }}
+          {% else %}
+            {{ 0 }}
+          {% endif %}
+
+# --- Phase 2 & 3 automations -------------------------------------------------
 automation:
   # Plug-on: snapshot starting conditions into the helpers.
   - id: jean_luc_session_start
@@ -184,6 +280,89 @@ automation:
             {{ [states('input_number.jean_luc_session_peak_kw') | float(0),
                 states('sensor.jean_luc_admissible_charging_power') | float(0)] | max }}
 
-# --- Phase 3: trip detection (placeholder, see issue #2) ---------------------
-# Trigger on plug-removed + movement, end on stop. Capture distance,
-# energy used, start/end coords, duration, efficiency.
+  # Phase 3: trip lifecycle.
+  # The Renault API only polls when the car wakes, so trip boundaries are
+  # reconstructed from mileage deltas. Two stops <20 min apart count as one
+  # trip in this v1.
+
+  # Trip start: mileage ticks up while no trip is in progress.
+  - id: jean_luc_trip_start
+    alias: "Jean-Luc: trip start"
+    description: "Snapshot start mileage, SoC, and energy when the odometer increases."
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.jean_luc_mileage
+    condition:
+      - condition: state
+        entity_id: input_boolean.jean_luc_trip_in_progress
+        state: "off"
+      - condition: template
+        value_template: >-
+          {% set new = trigger.to_state.state | float(-1) %}
+          {% set old = trigger.from_state.state | float(-1) %}
+          {{ new > 0 and old > 0 and new > old }}
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.jean_luc_trip_started_at
+        data:
+          timestamp: "{{ now().timestamp() }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_trip_mileage_start
+        data:
+          value: "{{ trigger.from_state.state | float(0) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_trip_soc_start
+        data:
+          value: "{{ states('sensor.jean_luc_battery') | float(0) }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.jean_luc_trip_energy_start
+        data:
+          value: "{{ states('sensor.jean_luc_battery_available_energy') | float(0) }}"
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.jean_luc_trip_in_progress
+
+  # Trip end: mileage hasn't changed for 20 min while a trip is active.
+  # The state trigger with `for:` fires when the entity has been in its current
+  # state for that duration — the entity doesn't need to update during the wait.
+  - id: jean_luc_trip_end_stable
+    alias: "Jean-Luc: trip end (mileage stable)"
+    description: "Close the trip when the odometer hasn't changed for 20 minutes."
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.jean_luc_mileage
+        for:
+          minutes: 20
+    condition:
+      - condition: state
+        entity_id: input_boolean.jean_luc_trip_in_progress
+        state: "on"
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.jean_luc_trip_in_progress
+
+  # Trip end: car got plugged in. Conclusive — definitely arrived somewhere.
+  - id: jean_luc_trip_end_plug
+    alias: "Jean-Luc: trip end (plug-in)"
+    description: "Close the trip when the car gets plugged in."
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.jean_luc_plug
+        from: "off"
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: input_boolean.jean_luc_trip_in_progress
+        state: "on"
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.jean_luc_trip_in_progress
