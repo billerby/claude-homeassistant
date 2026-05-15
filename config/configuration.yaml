@@ -255,27 +255,35 @@ template:
     - name: "Coffee Machine Steam Mode"
       state: "{{ states('input_boolean.coffee_steam_mode_active') == 'on' }}"
 
-    # Steam mode detection: must see both sustained average power (15-min mean)
-    # AND a recent heater pulse (8-min max). The 15-min mean alone has trailing
-    # decay after a single warm-up burst that kept the sensor on for 20+ min
-    # post-shutdown, so the 8-min max condition is the kill-switch — it drops
-    # to 0 within 8 min of the last pulse, ending the detection cleanly.
-    # Silvia heater cycles ~35s ON every ~6min in steam mode (165°C target):
-    # in steady steam mode the 8-min window always contains at least one pulse
-    # and the running 15-min mean settles around ~120W. The 100W threshold
-    # rejects cappuccino-making tails (multi-pulse brew/steam/shot sequences)
-    # whose 15-min mean stays under ~80W. 30-min warm-up gate prevents tripping
-    # during the initial heating burst.
+    # Steam mode detection: pulse-counting design. The earlier rolling-average
+    # approach couldn't discriminate between a single cappuccino (5-7 min
+    # cluster of pulses) and steady steam mode (pulses every ~6 min) because
+    # both elevate the 15-min mean similarly. Instead we count distinct heater
+    # pulses in two windows:
+    #   - pulses_30min ≥ 3: sustained activity (a cappuccino has 2-3 clustered
+    #     pulses, but steady steam mode racks up 5 pulses per 30 min)
+    #   - pulses_8min ≥ 1: a recent pulse must exist. Steady 6-min steam cycles
+    #     always have ≥1 pulse in an 8-min window. After a cappuccino, the last
+    #     cluster pulse ages out of this window in ~8 min, dropping the detector.
+    # 30-min warmup gate using switch.last_changed prevents tripping during the
+    # initial heating burst regardless of how the machine was turned on.
+    - name: "Coffee Heater Firing"
+      unique_id: coffee_heater_firing
+      device_class: heat
+      state: "{{ states('sensor.shellyplugg_till_lampan_power') | float(0) > 500 }}"
+      delay_off:
+        seconds: 60
+
     - name: "Coffee Machine Steam Mode Detected"
       unique_id: "coffee_machine_steam_mode_detected"
       device_class: heat
       state: >
-        {% set avg = states('sensor.coffee_machine_power_15min_avg')|float(0) %}
-        {% set peak = states('sensor.coffee_machine_power_8min_max')|float(0) %}
+        {% set pulses_30 = states('sensor.coffee_heater_pulses_30min')|float(0) %}
+        {% set pulses_8 = states('sensor.coffee_heater_pulses_8min')|float(0) %}
         {% set sw = states.switch.shellyplugg_till_lampan %}
         {% set on_since = sw.last_changed if sw and sw.state == 'on' else now() %}
         {% set warmed_up = (now() - on_since) > timedelta(minutes=30) %}
-        {{ warmed_up and avg > 100 and peak > 200 }}
+        {{ warmed_up and pulses_30 >= 3 and pulses_8 >= 1 }}
 
     # EV CHARGING: Check if we're in off-tariff period
     - name: "Off Tariff Period Active"
@@ -397,9 +405,8 @@ sensor:
       minutes: 15
     sampling_size: 3000
 
-  # Recent-pulse detector: max power in the last 8 min. Used together with the
-  # 15-min average so the steam-mode detector flips off within 8 min of the last
-  # heater pulse instead of riding 12-15 min of trailing average decay.
+  # Recent-pulse detector: max power in the last 8 min. Kept for diagnostics
+  # and Grafana; the live steam-mode detector now uses pulse counting instead.
   - platform: statistics
     name: "Coffee Machine Power 8min Max"
     unique_id: "coffee_machine_power_8min_max"
@@ -408,6 +415,30 @@ sensor:
     max_age:
       minutes: 8
     sampling_size: 3000
+
+  # Pulse counters powering the steam-mode detector. The binary_sensor
+  # 'coffee_heater_firing' goes ON when the Shelly reports >500W with a 60s
+  # delay_off so a single ~35s heater pulse with internal dips registers as
+  # one event. These count entries into the ON state across two windows.
+  - platform: history_stats
+    name: "Coffee Heater Pulses 30min"
+    unique_id: coffee_heater_pulses_30min
+    entity_id: binary_sensor.coffee_heater_firing
+    state: "on"
+    type: count
+    end: "{{ now() }}"
+    duration:
+      minutes: 30
+
+  - platform: history_stats
+    name: "Coffee Heater Pulses 8min"
+    unique_id: coffee_heater_pulses_8min
+    entity_id: binary_sensor.coffee_heater_firing
+    state: "on"
+    type: count
+    end: "{{ now() }}"
+    duration:
+      minutes: 8
 
   - platform: command_line
     name: pytibber_version

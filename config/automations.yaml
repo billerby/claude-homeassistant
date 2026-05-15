@@ -304,12 +304,13 @@
   mode: single
 - id: '1743669780278'
   alias: Varna för ångknappen
-  description: Uses average power consumption to reliably detect when steam mode is
-    left on. The detector requires both 15-min mean > 100W and 8-min max > 200W,
-    so it flips off cleanly within ~8 min of the last heater pulse. The 15-min
-    hold rejects multi-pulse cappuccino sequences (steam → brew → shot) whose
-    detector-ON window stays under 15 min, while still catching genuinely
-    forgotten steam mode (sustained pulses every ~6 min).
+  description: Pulse-counting detector — fires when ≥3 distinct heater pulses
+    have occurred in the last 30 min AND there's a fresh pulse in the last 8
+    min. Cappuccinos cluster 2-3 pulses in 5-7 min then go quiet, so the 8-min
+    requirement drops within ~8 min of the cluster ending. Steady steam mode
+    keeps firing pulses every ~6 min indefinitely. 18-min hold gives margin
+    for long cappuccino sequences (double shot + extended steaming) before
+    notifying.
   triggers:
   - trigger: state
     entity_id:
@@ -318,7 +319,7 @@
     to: 'on'
     for:
       hours: 0
-      minutes: 15
+      minutes: 18
       seconds: 0
   conditions: []
   actions:
