@@ -261,8 +261,11 @@ template:
     # post-shutdown, so the 8-min max condition is the kill-switch — it drops
     # to 0 within 8 min of the last pulse, ending the detection cleanly.
     # Silvia heater cycles ~35s ON every ~6min in steam mode (165°C target):
-    # in steady steam mode the 8-min window always contains at least one pulse.
-    # 30-min warm-up gate still prevents tripping during the initial heating burst.
+    # in steady steam mode the 8-min window always contains at least one pulse
+    # and the running 15-min mean settles around ~120W. The 100W threshold
+    # rejects cappuccino-making tails (multi-pulse brew/steam/shot sequences)
+    # whose 15-min mean stays under ~80W. 30-min warm-up gate prevents tripping
+    # during the initial heating burst.
     - name: "Coffee Machine Steam Mode Detected"
       unique_id: "coffee_machine_steam_mode_detected"
       device_class: heat
@@ -272,7 +275,7 @@ template:
         {% set sw = states.switch.shellyplugg_till_lampan %}
         {% set on_since = sw.last_changed if sw and sw.state == 'on' else now() %}
         {% set warmed_up = (now() - on_since) > timedelta(minutes=30) %}
-        {{ warmed_up and avg > 50 and peak > 200 }}
+        {{ warmed_up and avg > 100 and peak > 200 }}
 
     # EV CHARGING: Check if we're in off-tariff period
     - name: "Off Tariff Period Active"
