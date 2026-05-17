@@ -87,30 +87,27 @@ input_number:
 # --- Templates: degradation tracker + last-session summary sensors -----------
 template:
   # Visited-dashboard support: numeric lat/lon for VictoriaMetrics ingest.
-  # device_tracker.jean_luc_location's state is just "home"/"not_home" so
-  # the InfluxDB integration won't ship coords on its own. We mirror them
-  # into dedicated numeric sensors that fire whenever either attribute
-  # changes — each update lands as one point in VM that the Geomap panel
-  # reads. Renault polls only on car wake-up so points are sparse
-  # (typically start + end of each drive).
-  - trigger:
-      - platform: state
-        entity_id: device_tracker.jean_luc_location
-        attribute: latitude
-      - platform: state
-        entity_id: device_tracker.jean_luc_location
-        attribute: longitude
-    sensor:
-      - name: "Jean-Luc latitude"
-        unique_id: jean_luc_latitude
-        unit_of_measurement: "°"
-        state_class: measurement
-        state: "{{ state_attr('device_tracker.jean_luc_location', 'latitude') | float(0) }}"
-      - name: "Jean-Luc longitude"
-        unique_id: jean_luc_longitude
-        unit_of_measurement: "°"
-        state_class: measurement
-        state: "{{ state_attr('device_tracker.jean_luc_location', 'longitude') | float(0) }}"
+  # device_tracker.jean_luc_location's state is just "home"/"not_home" so the
+  # InfluxDB integration won't ship coords on its own. We mirror them into
+  # dedicated numeric sensors. Non-trigger templates re-evaluate immediately
+  # at HA startup AND whenever the device_tracker's attributes change, so
+  # the value is populated even when the car has been parked all day (the
+  # earlier trigger-based version stayed 'unknown' after every restart
+  # until the next GPS change). Availability gates the sensor while the
+  # Renault API is still loading.
+  - sensor:
+    - name: "Jean-Luc latitude"
+      unique_id: jean_luc_latitude
+      unit_of_measurement: "°"
+      state_class: measurement
+      availability: "{{ state_attr('device_tracker.jean_luc_location', 'latitude') is not none }}"
+      state: "{{ state_attr('device_tracker.jean_luc_location', 'latitude') | float }}"
+    - name: "Jean-Luc longitude"
+      unique_id: jean_luc_longitude
+      unit_of_measurement: "°"
+      state_class: measurement
+      availability: "{{ state_attr('device_tracker.jean_luc_location', 'longitude') is not none }}"
+      state: "{{ state_attr('device_tracker.jean_luc_location', 'longitude') | float }}"
 
   # Phase 1: degradation tracking.
   # Snapshot usable battery capacity whenever the pack hits 100% SoC. Sparse
