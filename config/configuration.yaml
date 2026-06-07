@@ -511,7 +511,45 @@ sensor:
     unit_of_measurement: "%"
     headers:
       Authorization: !secret septitankar_token2
+      Accept: text/event-stream 
+      
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/basement-temp/devices/kallare-lht65-temp-sensor/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Källartemperatur
+    unique_id: kallare_lht65_temperature
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.TempC_DS }}"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    headers:
+      Authorization: !secret kallartemperatur_token
       Accept: text/event-stream
+
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/basement-temp/devices/kallare-lht65-temp-sensor/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Källare luftfuktighet
+    unique_id: kallare_lht65_humidity
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.Hum_SHT }}"
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    headers:
+      Authorization: !secret kallartemperatur_token
+      Accept: text/event-stream
+
+  - platform: rest
+    resource: https://eu1.cloud.thethings.network/api/v3/as/applications/basement-temp/devices/kallare-lht65-temp-sensor/packages/storage/uplink_message?limit=1&order=-received_at
+    name: Källarsensor batteri
+    unique_id: kallare_lht65_battery_voltage
+    value_template: "{{ value_json.result.uplink_message.decoded_payload.BatV }}"
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    headers:
+      Authorization: !secret kallartemperatur_token
+      Accept: text/event-stream
+      
+      
       
   - platform: rest
     resource: https://api.forecast.solar/estimate/watthours/period/57.71356/12.04249/5/18/11.7

@@ -44,6 +44,21 @@ input_datetime:
     has_time: true
 
 input_number:
+  # --- Battery capacity (used for computed charging power) ---
+  # The Renault Kamereon API doesn't expose admissible_charging_power or
+  # battery_available_energy for the Renault 5 E-Tech, so we synthesise
+  # instantaneous charging power from the SoC derivative × usable capacity.
+  # Defaults to 40 kWh (Urban Range). Set to 52 if you have the Comfort
+  # Range variant.
+  jean_luc_battery_capacity_kwh:
+    name: Jean-Luc battery capacity (kWh)
+    min: 20
+    max: 80
+    step: 0.5
+    initial: 40
+    unit_of_measurement: "kWh"
+    icon: mdi:battery
+
   # --- Phase 2: charging session helpers ---
   jean_luc_session_soc_start:
     name: Jean-Luc session SoC start
@@ -84,6 +99,18 @@ input_number:
     step: 0.01
     unit_of_measurement: "kWh"
 
+# --- Derivative sensor: SoC rate of change ----------------------------------
+# Powers the computed charging power. Smooths the quantised 1%-step SoC over
+# a 15-min rolling window so the rate is stable enough to multiply against
+# the battery capacity. unit_time: h gives the rate in %/hour.
+sensor:
+  - platform: derivative
+    source: sensor.jean_luc_battery
+    name: "Jean-Luc SoC rate"
+    unit_time: h
+    round: 2
+    time_window: "00:15:00"
+
 # --- Templates: degradation tracker + last-session summary sensors -----------
 template:
   # Visited-dashboard support: numeric lat/lon for VictoriaMetrics ingest.
@@ -110,8 +137,13 @@ template:
       state: "{{ state_attr('device_tracker.jean_luc_location', 'longitude') | float }}"
 
   # Phase 1: degradation tracking.
-  # Snapshot usable battery capacity whenever the pack hits 100% SoC. Sparse
-  # by design — one point per full charge. Slope of this trend = degradation.
+  # Snapshot usable battery capacity AND estimated range whenever the pack
+  # hits 100% SoC. Sparse by design — one point per full charge. The
+  # capacity sensor depends on Renault's battery_available_energy, which is
+  # 'unknown' for the Renault 5 E-Tech, so it usually stays empty. The
+  # range_at_full sensor uses battery_autonomy (which the API does populate)
+  # as a degradation proxy: as the pack ages, the same 100% SoC reports
+  # fewer km of estimated range.
   - trigger:
       - platform: numeric_state
         entity_id: sensor.jean_luc_battery
@@ -126,6 +158,36 @@ template:
         attributes:
           mileage_km: "{{ states('sensor.jean_luc_mileage') | float(0) }}"
           recorded_at: "{{ now().isoformat() }}"
+      - name: "Jean-Luc range at full"
+        unique_id: jean_luc_range_at_full
+        unit_of_measurement: "km"
+        device_class: distance
+        state_class: measurement
+        state: "{{ states('sensor.jean_luc_battery_autonomy') | float(0) }}"
+        attributes:
+          mileage_km: "{{ states('sensor.jean_luc_mileage') | float(0) }}"
+          recorded_at: "{{ now().isoformat() }}"
+
+  # Computed charging power. Renault doesn't expose admissible_charging_power
+  # for this car, so we derive instantaneous power from the SoC slope:
+  #   power_kW = (dSoC/dt in %/h) / 100 × usable_capacity_kWh
+  # The derivative sensor below smooths over 15 min, so quick noise from the
+  # quantised integer SoC (1% steps) averages out. Zero when not charging.
+  - sensor:
+    - name: "Jean-Luc charging power computed"
+      unique_id: jean_luc_charging_power_computed
+      unit_of_measurement: "kW"
+      device_class: power
+      state_class: measurement
+      availability: "{{ states('sensor.jean_luc_soc_rate') not in ['unknown', 'unavailable', 'none'] }}"
+      state: >
+        {% if is_state('binary_sensor.jean_luc_charging', 'on') %}
+          {% set rate = states('sensor.jean_luc_soc_rate') | float(0) %}
+          {% set cap = states('input_number.jean_luc_battery_capacity_kwh') | float(40) %}
+          {{ ((rate / 100) * cap) | round(2) }}
+        {% else %}
+          0
+        {% endif %}
 
   # Phase 2: last-charging-session summary.
   # Fires when charging stops (on -> off). Each sensor below becomes its own

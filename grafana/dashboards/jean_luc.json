@@ -295,7 +295,7 @@
           "min": 0
         }
       },
-      "description": "Empty until the car next charges — Renault only reports admissible_charging_power while a charge cable is connected.",
+      "description": "Computed from the SoC derivative × battery capacity (input_number.jean_luc_battery_capacity_kwh). Renault doesn't expose admissible_charging_power for the R5 E-Tech, so we synthesise instantaneous power from how fast the pack fills. Zero when not charging.",
       "gridPos": {"h": 9, "w": 12, "x": 0, "y": 14},
       "id": 9,
       "options": {
@@ -305,7 +305,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-          "expr": "{__name__=\"sensor.jean_luc_admissible_charging_power_value\"}",
+          "expr": "{__name__=\"sensor.jean_luc_charging_power_computed_value\"}",
           "legendFormat": "Admissible charging power",
           "refId": "A"
         }
@@ -356,7 +356,7 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "description": "Snapshot of usable battery capacity each time SoC reaches 100%. Sparse by design — one point per full charge. Slope = degradation rate.",
+      "description": "Estimated range reported when SoC hits 100%. Sparse by design — one point per full charge. As the pack ages, the same 100% SoC predicts fewer km. Slope = degradation rate (proxy). Renault doesn't expose battery_available_energy for this car, so range is used instead of usable capacity.",
       "fieldConfig": {
         "defaults": {
           "color": {"mode": "palette-classic"},
@@ -368,7 +368,7 @@
             "showPoints": "always",
             "spanNulls": false
           },
-          "unit": "kwatth"
+          "unit": "lengthkm"
         }
       },
       "gridPos": {"h": 9, "w": 24, "x": 0, "y": 23},
@@ -380,12 +380,12 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-          "expr": "{__name__=\"sensor.jean_luc_capacity_at_full_value\"}",
-          "legendFormat": "Capacity at full charge",
+          "expr": "{__name__=\"sensor.jean_luc_range_at_full_value\"}",
+          "legendFormat": "Range at full charge",
           "refId": "A"
         }
       ],
-      "title": "Battery degradation (capacity at 100% SoC)",
+      "title": "Battery degradation (range at 100% SoC)",
       "type": "timeseries"
     }
   ],

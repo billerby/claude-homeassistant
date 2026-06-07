@@ -486,6 +486,15 @@ views:
         - dry
         - heat_cool
         - 'off'
+  - type: entities
+    title: Källare (LHT65)
+    entities:
+    - entity: sensor.kallartemperatur
+      name: Temperatur
+    - entity: sensor.kallare_luftfuktighet
+      name: Luftfuktighet
+    - entity: sensor.kallarsensor_batteri
+      name: Batterispänning
 - theme: Backend-selected
   title: Väder
   icon: mdi:temperature-celsius
