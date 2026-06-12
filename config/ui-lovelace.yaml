@@ -417,6 +417,53 @@ views:
     entities:
     - entity: input_boolean.apelgarden_warmup
       name: Värm upp till 22°C (luftvärmepump + golvvärme)
+  - type: horizontal-stack
+    title: Temperaturer
+    cards:
+    - type: gauge
+      entity: sensor.stora_badrummet_room_temperature
+      name: Stora badrummet
+      unit: °C
+      min: 5
+      max: 30
+      needle: true
+      severity:
+        green: 18
+        yellow: 24
+        red: 27
+    - type: gauge
+      entity: sensor.lilla_badrummet_room_temperature
+      name: Lilla badrummet
+      unit: °C
+      min: 5
+      max: 30
+      needle: true
+      severity:
+        green: 18
+        yellow: 24
+        red: 27
+    - type: gauge
+      entity: sensor.erik_s_device_current_temperature
+      name: Vardagsrum
+      unit: °C
+      min: 5
+      max: 30
+      needle: true
+      severity:
+        green: 18
+        yellow: 24
+        red: 27
+    - type: gauge
+      entity: sensor.kallartemperatur
+      name: Källare
+      unit: °C
+      min: 0
+      max: 30
+      needle: true
+      severity:
+        green: 10
+        yellow: 20
+        red: 25
   - type: gauge
     entity: sensor.large_septitank_level
     severity:

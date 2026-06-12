@@ -20,6 +20,12 @@ automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
+command_line:
+  - sensor:
+      name: pytibber_version
+      command: "python3 -c 'import tibber; print(tibber.__version__)' 2>/dev/null || echo 'unknown'"
+      scan_interval: 86400
+
 
 lovelace:
   resource_mode: yaml
@@ -440,11 +446,6 @@ sensor:
     duration:
       minutes: 8
 
-  - platform: command_line
-    name: pytibber_version
-    command: "python3 -c 'import tibber; print(tibber.__version__)' 2>/dev/null || echo 'unknown'"
-    scan_interval: 86400  
-    
   - platform: rest
     resource: https://eu1.cloud.thethings.network/api/v3/as/applications/badtemperatur-application/devices/eui-a840411f8182f655/packages/storage/uplink_message?limit=1&order=-received_at
     name: Badtemperatur
