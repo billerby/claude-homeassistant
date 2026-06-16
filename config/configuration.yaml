@@ -109,7 +109,8 @@ template:
         {% set start = states('input_number.water_meter_midnight_value')|float(0) %}
         {{ (current - start)|round(3) }}
 
-    # TESLA TIRE PRESSURE: Convert from psi to bar
+    # TESLA TIRE PRESSURE: TeslaMate publishes bar already — pass through.
+    # (Kept as templates so these entity_ids/dashboards stay stable.)
     - name: "Tesla Front Left Tire Pressure"
       unique_id: "tesla_tpms_front_left_bar"
       unit_of_measurement: "bar"
@@ -117,8 +118,7 @@ template:
       state_class: measurement
       icon: mdi:car-tire-alert
       state: >
-        {% set psi = states('sensor.otto_von_bismarck_tpms_front_left')|float(0) %}
-        {{ (psi * 0.0689476)|round(2) }}
+        {{ states('sensor.otto_von_bismarck_tpms_front_left')|float(0)|round(2) }}
 
     - name: "Tesla Front Right Tire Pressure"
       unique_id: "tesla_tpms_front_right_bar"
@@ -127,8 +127,7 @@ template:
       state_class: measurement
       icon: mdi:car-tire-alert
       state: >
-        {% set psi = states('sensor.otto_von_bismarck_tpms_front_right')|float(0) %}
-        {{ (psi * 0.0689476)|round(2) }}
+        {{ states('sensor.otto_von_bismarck_tpms_front_right')|float(0)|round(2) }}
 
     - name: "Tesla Rear Left Tire Pressure"
       unique_id: "tesla_tpms_rear_left_bar"
@@ -137,8 +136,7 @@ template:
       state_class: measurement
       icon: mdi:car-tire-alert
       state: >
-        {% set psi = states('sensor.otto_von_bismarck_tpms_rear_left')|float(0) %}
-        {{ (psi * 0.0689476)|round(2) }}
+        {{ states('sensor.otto_von_bismarck_tpms_rear_left')|float(0)|round(2) }}
 
     - name: "Tesla Rear Right Tire Pressure"
       unique_id: "tesla_tpms_rear_right_bar"
@@ -147,8 +145,7 @@ template:
       state_class: measurement
       icon: mdi:car-tire-alert
       state: >
-        {% set psi = states('sensor.otto_von_bismarck_tpms_rear_right')|float(0) %}
-        {{ (psi * 0.0689476)|round(2) }}
+        {{ states('sensor.otto_von_bismarck_tpms_rear_right')|float(0)|round(2) }}
         
     # Creates a human-readable version in liters
     - name: "water_usage_today_liters"
