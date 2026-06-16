@@ -326,10 +326,10 @@ template:
         {% set smart_enabled = is_state('input_boolean.ev_smart_charging_enabled', 'on') %}
         {% set available_power = states('sensor.ev_max_power_available')|float(0) %}
         {% set current_soc = states('sensor.otto_von_bismarck_battery')|float(0) %}
-        {# CUTOVER: change to sensor.otto_von_bismarck_charge_limit when removing
-           tesla_custom — see docs/teslamate-to-homeassistant.md. Left as number.*
-           so the entity-reference validator stays green pre-cutover. #}
-        {% set target_soc = states('number.otto_von_bismarck_charge_limit')|float(100) %}
+        {# Charge limit is the read-only MQTT sensor sourced from TeslaMate (was
+           number.otto_von_bismarck_charge_limit under the retired tesla_custom).
+           See docs/teslamate-to-homeassistant.md. #}
+        {% set target_soc = states('sensor.otto_von_bismarck_charge_limit')|float(100) %}
         {% set needs_charging = current_soc < target_soc %}
         {{ smart_enabled and off_tariff_active and in_cheap_window and cable_locked and available_power > 1 and needs_charging }}
 
