@@ -2,6 +2,11 @@
 
 # Secrets and sensitive data
 config/secrets.yaml
+# MQTT bridge to TeslaMate: the real password lives ONLY in
+# /share/mosquitto/teslamate-bridge.conf on the HA host (outside rsync scope).
+# This ignores any local real-named copy so it can never be committed; the
+# committed template is teslamate-bridge.conf.example with remote_password CHANGE_ME.
+config/mosquitto/teslamate-bridge.conf
 config/.storage/
 config/home-assistant.log*
 config/OZW_Log.txt

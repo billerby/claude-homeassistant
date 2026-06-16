@@ -1,0 +1,44 @@
+# Mosquitto bridge: pull TeslaMate's topics from the off-site EC2 broker.
+#
+# The local HA mosquitto (the "Mosquitto broker" add-on) dials OUT to the
+# TeslaMate broker on AWS over TLS:8883 and mirrors `teslamate/#` into this
+# broker, where the packages/otto_von_bismarck.yaml MQTT entities consume it.
+#
+# This is a TEMPLATE (note the .example suffix). It stays `CHANGE_ME` in git —
+# the real password lives ONLY in /share/mosquitto/teslamate-bridge.conf on the
+# HA host, which is outside the rsync scope (HA_REMOTE_PATH=/config/), so it is
+# never pulled into the repo. See README / .rsync-excludes-* and the
+# block-mqtt-bridge-secret pre-commit hook.
+#
+# Install:
+#   1. Copy this file to /share/mosquitto/teslamate-bridge.conf on the HA host
+#      (drop the .example suffix).
+#   2. In the Mosquitto add-on > Configuration, set:
+#         customize:
+#           active: true
+#           folder: mosquitto
+#   3. Set remote_password in that /share copy ONLY (matches `ha-bridge` in the
+#      EC2 passwd file) — never here in the repo template.
+#   4. Restart the Mosquitto add-on. Check the add-on log for
+#      "connecting bridge teslamate-ec2" / "connected".
+#
+# Verify in HA: Settings > Devices & Services > MQTT > "Listen to a topic",
+# subscribe to `teslamate/#` — messages should arrive.
+
+connection teslamate-ec2
+address teslamate.billerby.com:8883
+
+remote_username ha-bridge
+remote_password CHANGE_ME
+
+# Verify the broker's Let's Encrypt cert against the system CA bundle.
+bridge_capath /etc/ssl/certs
+bridge_insecure false
+
+# Import every teslamate topic, remote -> local (we never publish back).
+topic teslamate/# in 0
+
+cleansession true
+start_type automatic
+try_private false
+notifications false

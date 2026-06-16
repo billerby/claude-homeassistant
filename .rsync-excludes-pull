@@ -41,6 +41,11 @@ www/
 # Miscellaneous
 .uuid
 
+# MQTT bridge to TeslaMate — never pull this back into the repo. The live file
+# on HA may contain the real remote_password; keeping it out of the working
+# tree (and protected from --delete) means it can never reach git/GitHub.
+mosquitto/teslamate-bridge.conf
+
 # Temporary files
 *.tmp
 *.temp

@@ -1,0 +1,187 @@
+# =============================================================================
+# Otto von Bismarck — Tesla telemetry sourced from TeslaMate over MQTT
+# =============================================================================
+# Replaces the retired `alandtse/tesla` (tesla_custom) integration. TeslaMate
+# is the single Fleet API consumer; it publishes to its mosquitto broker on
+# AWS, which the local mosquitto bridges in (see
+# ../mosquitto/teslamate-bridge.conf). These entities are READ-ONLY.
+#
+# Car id assumption: TeslaMate car **1** (topics teslamate/cars/1/...). If your
+# car id differs, change the `1` in every topic below. Find it by subscribing
+# to `teslamate/cars/+/display_name` in the MQTT "Listen to a topic" tool.
+#
+# Entity IDs are kept identical to the old tesla_custom ones so existing
+# dashboards/templates keep working — EXCEPT the two formerly-settable controls
+# (charge_limit, charging_amps) which are now `sensor.*` not `number.*`, and
+# `charging_rate` which TeslaMate does not publish. See
+# ../../docs/teslamate-to-homeassistant.md for the cutover steps + loss map.
+# =============================================================================
+
+mqtt:
+  sensor:
+    - name: "Otto von Bismarck Battery"
+      unique_id: ovb_battery_level
+      device: &ovb_device
+        identifiers: [teslamate_car_1]
+        name: Otto von Bismarck
+        manufacturer: Tesla
+        model: Model Y
+      state_topic: "teslamate/cars/1/battery_level"
+      unit_of_measurement: "%"
+      device_class: battery
+      state_class: measurement
+      icon: mdi:battery
+
+    - name: "Otto von Bismarck Range"
+      unique_id: ovb_range
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/rated_battery_range_km"
+      unit_of_measurement: km
+      device_class: distance
+      state_class: measurement
+      icon: mdi:gauge
+
+    - name: "Otto von Bismarck Charger Power"
+      unique_id: ovb_charger_power
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charger_power"
+      unit_of_measurement: kW
+      device_class: power
+      state_class: measurement
+
+    - name: "Otto von Bismarck Energy Added"
+      unique_id: ovb_energy_added
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charge_energy_added"
+      unit_of_measurement: kWh
+      device_class: energy
+      # `total` not `measurement`: HA rejects energy+measurement, and this value
+      # resets each charging session (so not total_increasing either).
+      state_class: total
+
+    - name: "Otto von Bismarck Odometer"
+      unique_id: ovb_odometer
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/odometer"
+      unit_of_measurement: km
+      device_class: distance
+      state_class: total_increasing
+      icon: mdi:counter
+
+    # Was number.otto_von_bismarck_charge_limit (settable). Read-only now.
+    - name: "Otto von Bismarck Charge Limit"
+      unique_id: ovb_charge_limit
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charge_limit_soc"
+      unit_of_measurement: "%"
+      icon: mdi:battery-charging-100
+
+    # Was number.otto_von_bismarck_charging_amps (settable). Read-only now.
+    - name: "Otto von Bismarck Charging Amps"
+      unique_id: ovb_charging_amps
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charger_actual_current"
+      unit_of_measurement: A
+      device_class: current
+      state_class: measurement
+
+    # Names chosen to slugify to the tesla_custom ids the dashboards already use
+    # (…_temperature_inside / …_temperature_outside), not "inside_temp".
+    - name: "Otto von Bismarck Temperature Inside"
+      unique_id: ovb_temperature_inside
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/inside_temp"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+
+    - name: "Otto von Bismarck Temperature Outside"
+      unique_id: ovb_temperature_outside
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/outside_temp"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+
+    - name: "Otto von Bismarck Time to Full Charge"
+      unique_id: ovb_time_to_full_charge
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/time_to_full_charge"
+      unit_of_measurement: h
+      icon: mdi:clock-end
+
+    # TPMS — TeslaMate already publishes bar (the old tesla_custom gave psi,
+    # which the templates in configuration.yaml converted; those templates are
+    # now pass-through — see the migration doc).
+    - name: "Otto von Bismarck Tpms Front Left"
+      unique_id: ovb_tpms_fl
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_pressure_fl"
+      unit_of_measurement: bar
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+
+    - name: "Otto von Bismarck Tpms Front Right"
+      unique_id: ovb_tpms_fr
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_pressure_fr"
+      unit_of_measurement: bar
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+
+    - name: "Otto von Bismarck Tpms Rear Left"
+      unique_id: ovb_tpms_rl
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_pressure_rl"
+      unit_of_measurement: bar
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+
+    - name: "Otto von Bismarck Tpms Rear Right"
+      unique_id: ovb_tpms_rr
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_pressure_rr"
+      unit_of_measurement: bar
+      device_class: pressure
+      state_class: measurement
+      icon: mdi:car-tire-alert
+
+  binary_sensor:
+    - name: "Otto von Bismarck Charging"
+      unique_id: ovb_charging
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/state"
+      value_template: "{{ 'ON' if value == 'charging' else 'OFF' }}"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: battery_charging
+      icon: mdi:ev-station
+
+    - name: "Otto von Bismarck Plugged In"
+      unique_id: ovb_plugged_in
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/plugged_in"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: plug
+
+    - name: "Otto von Bismarck Online"
+      unique_id: ovb_online
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/state"
+      value_template: "{{ 'OFF' if value in ['offline', 'asleep'] else 'ON' }}"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: connectivity
+
+  device_tracker:
+    - name: "Otto von Bismarck Location Tracker"
+      unique_id: ovb_location
+      device: *ovb_device
+      # TeslaMate publishes a JSON object {"latitude":..,"longitude":..} on the
+      # `location` topic; HA reads lat/lon from it via json_attributes_topic.
+      json_attributes_topic: "teslamate/cars/1/location"
+      icon: mdi:crosshairs-gps
