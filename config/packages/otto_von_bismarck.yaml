@@ -26,7 +26,6 @@ mqtt:
         name: Otto von Bismarck
         manufacturer: Tesla
         model: Model Y
-        via_device: teslamate
       state_topic: "teslamate/cars/1/battery_level"
       unit_of_measurement: "%"
       device_class: battery
@@ -56,7 +55,9 @@ mqtt:
       state_topic: "teslamate/cars/1/charge_energy_added"
       unit_of_measurement: kWh
       device_class: energy
-      state_class: measurement
+      # `total` not `measurement`: HA rejects energy+measurement, and this value
+      # resets each charging session (so not total_increasing either).
+      state_class: total
 
     - name: "Otto von Bismarck Odometer"
       unique_id: ovb_odometer
@@ -84,16 +85,18 @@ mqtt:
       device_class: current
       state_class: measurement
 
-    - name: "Otto von Bismarck Inside Temp"
-      unique_id: ovb_inside_temp
+    # Names chosen to slugify to the tesla_custom ids the dashboards already use
+    # (…_temperature_inside / …_temperature_outside), not "inside_temp".
+    - name: "Otto von Bismarck Temperature Inside"
+      unique_id: ovb_temperature_inside
       device: *ovb_device
       state_topic: "teslamate/cars/1/inside_temp"
       unit_of_measurement: "°C"
       device_class: temperature
       state_class: measurement
 
-    - name: "Otto von Bismarck Outside Temp"
-      unique_id: ovb_outside_temp
+    - name: "Otto von Bismarck Temperature Outside"
+      unique_id: ovb_temperature_outside
       device: *ovb_device
       state_topic: "teslamate/cars/1/outside_temp"
       unit_of_measurement: "°C"

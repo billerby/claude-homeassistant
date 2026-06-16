@@ -41,7 +41,13 @@ Both ends are scaffolded:
 
 ## Entity map
 
-### Preserved (same entity_id, read-only) — dashboards/templates keep working
+> **Read this before cutover.** This package is read-only telemetry. The
+> dashboards currently reference ~30 `tesla_custom` entities — most of them
+> command/extra entities TeslaMate cannot provide. After step 2 (remove
+> `tesla_custom`) **all of those tiles go "unavailable"** until you edit or
+> remove them. The lists below are exhaustive, not illustrative.
+
+### Preserved — same entity_id, dashboards keep working
 | Entity | TeslaMate topic |
 |---|---|
 | `sensor.otto_von_bismarck_battery` | `battery_level` |
@@ -49,26 +55,32 @@ Both ends are scaffolded:
 | `sensor.otto_von_bismarck_charger_power` | `charger_power` |
 | `sensor.otto_von_bismarck_energy_added` | `charge_energy_added` |
 | `sensor.otto_von_bismarck_odometer` | `odometer` |
+| `sensor.otto_von_bismarck_temperature_inside` | `inside_temp` |
+| `sensor.otto_von_bismarck_temperature_outside` | `outside_temp` |
 | `sensor.otto_von_bismarck_tpms_*` (bar) | `tpms_pressure_*` |
 | `binary_sensor.otto_von_bismarck_charging` | `state == charging` |
+| `binary_sensor.otto_von_bismarck_online` | `state != offline/asleep` |
 | `device_tracker.otto_von_bismarck_location_tracker` | `location` (JSON) |
-| + extras: inside/outside temp, plugged-in, online, time-to-full | |
+| + new: `…_charge_limit`, `…_charging_amps`, `…_plugged_in`, `…_time_to_full_charge` | |
 
-### Changed — needs a small dashboard edit
-These were settable `number.*` entities; read-only MQTT makes them `sensor.*`:
-| Old (number) | New (sensor) | Used in |
-|---|---|---|
-| `number.otto_von_bismarck_charge_limit` | `sensor.otto_von_bismarck_charge_limit` | `ui-lovelace.yaml:794` |
-| `number.otto_von_bismarck_charging_amps` | `sensor.otto_von_bismarck_charging_amps` | `ui-lovelace.yaml:804` |
+### Changed — needs a dashboard edit
+| Old entity | Now | Where referenced | Action |
+|---|---|---|---|
+| `number.…charge_limit` | `sensor.…charge_limit` (read-only) | `ui-lovelace.yaml:794` **and** `configuration.yaml:329` (EV smart-charging template) | edit both. **`configuration.yaml:329` is critical**: left as `number.*` it silently resolves to `unknown`→`float(100)`, so `target_soc` is always 100 and the car is treated as needing charge to full. A `{# CUTOVER #}` comment marks the line. |
+| `number.…charging_amps` | `sensor.…charging_amps` (read-only) | `ui-lovelace.yaml:804` | edit the dashboard tile |
+| `sensor.…time_charge_complete` (a timestamp) | `sensor.…time_to_full_charge` (hours remaining — **different meaning**) | `ui-lovelace.yaml` | repoint the tile; note it now shows duration, not a clock time |
 
-Update those two lines in `ui-lovelace.yaml`, and the matching tiles in the
-UI-managed dashboard (`.storage/lovelace` — edit via the UI, not by hand).
+### Lost — no read-only TeslaMate equivalent (tiles will break)
+All of these are referenced by `ui-lovelace.yaml` (and mirrored in
+`.storage/lovelace`). Remove or repoint each tile, or accept "unavailable":
 
-### Lost — no TeslaMate equivalent
-| Entity | Note |
-|---|---|
-| `sensor.otto_von_bismarck_charging_rate` | TeslaMate has no range-added-per-hour. Dashboard `ui-lovelace.yaml:798` — swap the tile to `sensor.otto_von_bismarck_charger_power` (kW). |
-| all **command** entities (climate, locks, wake, sentry, charge start/stop, set amps/limit, seat heaters, …) | TeslaMate is read-only by design. Nothing in your automations used them. If you ever need to command the car from HA, add the official **`tesla_fleet`** core integration alongside (its own Fleet app + signing proxy). |
+- `sensor.…charging_rate` — TeslaMate has no range-added-per-hour; closest is `sensor.…charger_power` (kW).
+- `sensor.…shift_state`, `sensor.…data_last_update_time`.
+- **Command entities** (TeslaMate is read-only by design): `lock.…doors`, `lock.…charge_port_latch`, `cover.…{windows,trunk,frunk,charger_door}`, `climate.…hvac_climate_system`, `switch.…{sentry_mode,valet_mode,charger}`, `button.…{wake_up,remote_start,horn,flash_lights,force_data_update}`, `select.…{heated_seat_*,cabin_overheat_protection}`, `update.…software_update`.
+- **State binary_sensors** TeslaMate *does* publish but this package doesn't expose yet (could be added as read-only `binary_sensor`s if you want them back): `binary_sensor.…{doors,windows,user_present,parking_brake,scheduled_charging,scheduled_departure,charger}` ← TeslaMate `doors_open` / `windows_open` / `is_user_present` / etc.
+
+If you later need to **command** the car from HA, add the official
+**`tesla_fleet`** core integration alongside (its own Fleet app + signing proxy).
 
 ## Notes
 - TPMS: TeslaMate publishes **bar**; the `configuration.yaml` "Tesla … Tire
