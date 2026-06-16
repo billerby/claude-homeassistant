@@ -32,6 +32,12 @@ image/
 tmp_backups/
 www/
 
+# MQTT bridge to TeslaMate — don't push this from the repo. The live config the
+# Mosquitto add-on reads is /share/mosquitto/teslamate-bridge.conf (outside
+# HA_REMOTE_PATH), set by hand on the host with the real password. Excluding it
+# here keeps a stray local copy from ever landing in HA's /config tree.
+mosquitto/teslamate-bridge.conf
+
 # Temporary files
 *.tmp
 *.temp

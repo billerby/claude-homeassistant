@@ -55,6 +55,17 @@ repos:
         language: script
         files: \.(yaml|yml)$
 
+      - id: block-mqtt-bridge-secret
+        name: block real MQTT bridge password
+        # Backstop for the TeslaMate MQTT bridge: the real remote_password must
+        # live only in /share/mosquitto/teslamate-bridge.conf on the HA host,
+        # never in git. Reject any staged change that adds a remote_password
+        # line whose value is not the CHANGE_ME placeholder (catches `git add -f`
+        # of the ignored file, or a password pasted into any other file).
+        entry: bash -c 'git diff --cached -U0 | grep -E "^\+\s*remote_password" | grep -qv "CHANGE_ME" && { echo "ERROR: a real remote_password is staged — it belongs only in /share/mosquitto/teslamate-bridge.conf on the HA host, not in git."; exit 1; } || true'
+        language: system
+        pass_filenames: false
+
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
