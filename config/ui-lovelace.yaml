@@ -766,50 +766,40 @@ views:
         min: 0
         max: 11
         unit: kW
-    - type: horizontal-stack
-      cards:
-      - type: entity
-        entity: binary_sensor.otto_von_bismarck_online
+    - type: glance
+      state_color: true
+      columns: 3
+      entities:
+      - entity: binary_sensor.otto_von_bismarck_online
         name: Online
-        icon: mdi:cloud-check
-      - type: entity
-        entity: binary_sensor.otto_von_bismarck_charging
+      - entity: binary_sensor.otto_von_bismarck_charging
         name: Charging
-        icon: mdi:battery-charging
-      - type: entity
-        entity: lock.otto_von_bismarck_doors
-        name: Doors
-        icon: mdi:car-door-lock
-      - type: entity
-        entity: binary_sensor.otto_von_bismarck_charger
-        name: Charger
-        icon: mdi:ev-plug-tesla
+      - entity: binary_sensor.otto_von_bismarck_plugged_in
+        name: Plugged In
     - type: entities
-      title: Charging Information
+      title: Charging
       state_color: true
       entities:
       - entity: sensor.otto_von_bismarck_battery
         name: Battery Level
         icon: mdi:battery
-      - entity: number.otto_von_bismarck_charge_limit
+      - entity: sensor.otto_von_bismarck_charge_limit
         name: Charge Limit
+        icon: mdi:battery-charging-100
+      - entity: binary_sensor.otto_von_bismarck_plugged_in
+        name: Plugged In
       - entity: sensor.otto_von_bismarck_charger_power
         name: Charging Power
-      - entity: sensor.otto_von_bismarck_charging_rate
-        name: Charging Rate
+        icon: mdi:flash
+      - entity: sensor.otto_von_bismarck_charging_amps
+        name: Charging Current
+        icon: mdi:current-ac
       - entity: sensor.otto_von_bismarck_energy_added
         name: Energy Added
-      - entity: sensor.otto_von_bismarck_time_charge_complete
-        name: Charge Complete At
-      - entity: number.otto_von_bismarck_charging_amps
-        name: Charging Current
-      - entity: switch.otto_von_bismarck_charger
-        name: Charger Control
-      - type: divider
-      - entity: binary_sensor.otto_von_bismarck_scheduled_charging
-        name: Scheduled Charging
-      - entity: binary_sensor.otto_von_bismarck_scheduled_departure
-        name: Scheduled Departure
+        icon: mdi:battery-plus-variant
+      - entity: sensor.otto_von_bismarck_time_to_full_charge
+        name: Time to Full Charge
+        icon: mdi:timer-sand
     - type: history-graph
       title: Battery Level History
       entities:
@@ -819,54 +809,35 @@ views:
       refresh_interval: 60
     - type: horizontal-stack
       cards:
-      - type: thermostat
-        entity: climate.otto_von_bismarck_hvac_climate_system
-      - type: entities
-        title: Temperature
-        entities:
-        - entity: sensor.otto_von_bismarck_temperature_inside
-          name: Inside
-          icon: mdi:thermometer
-        - entity: sensor.otto_von_bismarck_temperature_outside
-          name: Outside
-          icon: mdi:thermometer
-    - type: entities
-      title: Heated Seats
+      - type: gauge
+        entity: sensor.otto_von_bismarck_temperature_inside
+        name: Inside
+        unit: °C
+        needle: true
+        min: -10
+        max: 40
+      - type: gauge
+        entity: sensor.otto_von_bismarck_temperature_outside
+        name: Outside
+        unit: °C
+        needle: true
+        min: -20
+        max: 40
+    - type: glance
+      title: Tire Pressures (bar)
+      columns: 4
       entities:
-      - entity: select.otto_von_bismarck_heated_seat_left
-        name: Driver
-        icon: mdi:car-seat-heater
-      - entity: select.otto_von_bismarck_heated_seat_right
-        name: Passenger
-        icon: mdi:car-seat-heater
-      - entity: select.otto_von_bismarck_heated_seat_rear_left
-        name: Rear Left
-        icon: mdi:car-seat-heater
-      - entity: select.otto_von_bismarck_heated_seat_rear_center
-        name: Rear Center
-        icon: mdi:car-seat-heater
-      - entity: select.otto_von_bismarck_heated_seat_rear_right
-        name: Rear Right
-        icon: mdi:car-seat-heater
-      - entity: select.otto_von_bismarck_cabin_overheat_protection
-        name: Overheat Protection
+      - entity: sensor.otto_von_bismarck_tpms_front_left
+        name: Front L
+      - entity: sensor.otto_von_bismarck_tpms_front_right
+        name: Front R
+      - entity: sensor.otto_von_bismarck_tpms_rear_left
+        name: Rear L
+      - entity: sensor.otto_von_bismarck_tpms_rear_right
+        name: Rear R
     - type: entities
-      title: Tire Pressures
-      entities:
-      - entity: sensor.tesla_front_left_tire_pressure
-        name: Front Left
-        icon: mdi:car-tire-alert
-      - entity: sensor.tesla_front_right_tire_pressure
-        name: Front Right
-        icon: mdi:car-tire-alert
-      - entity: sensor.tesla_rear_left_tire_pressure
-        name: Rear Left
-        icon: mdi:car-tire-alert
-      - entity: sensor.tesla_rear_right_tire_pressure
-        name: Rear Right
-        icon: mdi:car-tire-alert
-    - type: entities
-      title: Vehicle Information
+      title: Vehicle
+      state_color: true
       entities:
       - entity: sensor.otto_von_bismarck_odometer
         name: Odometer
@@ -874,61 +845,12 @@ views:
       - entity: sensor.otto_von_bismarck_range
         name: Estimated Range
         icon: mdi:map-marker-distance
-      - entity: sensor.otto_von_bismarck_shift_state
-        name: Shift State
-        icon: mdi:car-shift-pattern
-      - entity: binary_sensor.otto_von_bismarck_parking_brake
-        name: Parking Brake
-      - entity: update.otto_von_bismarck_software_update
-        name: Software Update
-      - entity: sensor.otto_von_bismarck_data_last_update_time
-        name: Last Updated
-    - type: entities
-      title: Security & Access
-      state_color: true
-      entities:
-      - entity: lock.otto_von_bismarck_doors
-        name: Door Locks
-      - entity: binary_sensor.otto_von_bismarck_doors
-        name: Doors Status
-      - entity: binary_sensor.otto_von_bismarck_windows
-        name: Windows Status
-      - entity: cover.otto_von_bismarck_windows
-        name: Windows Control
-      - type: divider
-      - entity: cover.otto_von_bismarck_frunk
-        name: Frunk
-      - entity: cover.otto_von_bismarck_trunk
-        name: Trunk
-      - entity: cover.otto_von_bismarck_charger_door
-        name: Charge Port
-      - entity: lock.otto_von_bismarck_charge_port_latch
-        name: Charge Port Lock
-      - type: divider
-      - entity: switch.otto_von_bismarck_sentry_mode
-        name: Sentry Mode
-      - entity: switch.otto_von_bismarck_valet_mode
-        name: Valet Mode
-      - entity: binary_sensor.otto_von_bismarck_user_present
-        name: User Present
-    - type: entities
-      title: Quick Actions
-      entities:
-      - entity: button.otto_von_bismarck_wake_up
-        name: Wake Up
-        icon: mdi:sleep-off
-      - entity: button.otto_von_bismarck_horn
-        name: Horn
-        icon: mdi:bullhorn
-      - entity: button.otto_von_bismarck_flash_lights
-        name: Flash Lights
-        icon: mdi:car-light-high
-      - entity: button.otto_von_bismarck_remote_start
-        name: Remote Start
-        icon: mdi:car-key
-      - entity: button.otto_von_bismarck_force_data_update
-        name: Force Update
-        icon: mdi:refresh
+      - entity: binary_sensor.otto_von_bismarck_online
+        name: Online
+        secondary_info: last-changed
+      - entity: device_tracker.otto_von_bismarck_location_tracker
+        name: Location
+        icon: mdi:crosshairs-gps
     - type: map
       title: Location
       entities:
