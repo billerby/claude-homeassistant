@@ -46,11 +46,11 @@ views:
             name: FR24
           - entity: sensor.ads_b_tappade_samples
             name: Tappade
-          - entity: sensor.flygplan_per_dygn
+          - entity: sensor.flygplan_i_dag
             name: Plan i dag
           - entity: sensor.ads_b_max_avstand
             name: Max avstånd
-          - entity: sensor.flygplan_per_manad
+          - entity: sensor.flygplan_denna_manad
             name: Denna månad
 
       # --- Brusgolvet: det diagnostiska diagrammet ------------------------------
@@ -174,7 +174,7 @@ views:
       # --- Flygplan per dygn -----------------------------------------------------
       # Dygnssummor är diskreta storheter och ritas som staplar, inte som en
       # kurva — det finns inget mellanläge mellan i går och i dag att
-      # interpolera. Källan är utility_meter, som nollställs vid midnatt, så
+      # interpolera. Källan nollställs vid midnatt av räknaren på Pi:n, så
       # dygnets värde är maxvärdet inom dygnet.
       - type: custom:apexcharts-card
         graph_span: 7d
@@ -195,7 +195,7 @@ views:
               borderRadius: 4
               columnWidth: 60%
         series:
-          - entity: sensor.flygplan_per_dygn
+          - entity: sensor.flygplan_i_dag
             name: Flygplan
             color: '#2a78d6'
             type: column

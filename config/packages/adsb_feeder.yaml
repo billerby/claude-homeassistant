@@ -56,47 +56,6 @@ rest:
         state_class: measurement
         icon: mdi:signal
 
-      # Antal flygplan sedan readsb startade. readsb räknar "spår", och drar
-      # man inte bort enmeddelandespåren får man ett tal som är tjugo gånger
-      # för högt: 2188 mot 103. Ett enmeddelandespår är en ICAO-kod som
-      # avkodats en enda gång och aldrig återkom — nästan alltid en
-      # CRC-korrigerad falsk träff, inte ett flygplan.
-      #
-      # VIKTIGT: skillnaden är INTE monotont växande, och får därför inte
-      # deklareras `total_increasing`. readsb räknar upp `all` när ett spår
-      # SKAPAS men `single_message` först när spåret ÅLDRAS UT, så de två
-      # löper osynkroniserat och differensen svänger ±10 mellan avläsningar:
-      #
-      #   15:30:04  all=2208  single=2107  diff=101
-      #   15:30:29  all=2213  single=2115  diff= 98
-      #   15:30:54  all=2214  single=2120  diff= 94
-      #   15:31:19  all=2219  single=2122  diff= 97
-      #
-      # Med `total_increasing` tolkade HA varje sådan svacka som en
-      # nollställning av mätaren och lade till hela värdet igen på vägen upp.
-      # Den 4 september 2026 stod dygnsmätaren på 256 medan källan stod på
-      # 106 — dygnssumman var alltså större än totalen den räknade på.
-      #
-      # Sensorn behålls som ögonblicksvärde (`measurement`). Den ackumulerande
-      # räkningen görs av `sensor.flygplan_ackumulerat` längre ned, som filtrerar
-      # bort svackorna.
-      - name: "Flygplan totalt"
-        unique_id: adsb_aircraft_total
-        value_template: >-
-          {{ (value_json.total.tracks.all | int(0))
-             - (value_json.total.tracks.single_message | int(0)) }}
-        unit_of_measurement: "st"
-        state_class: measurement
-        icon: mdi:counter
-
-      # readsb-processens starttid som unix-tid. Ändras bara när readsb startas
-      # om, och är därmed den exakta signalen för "räknarna började om från noll"
-      # — bättre än att gissa utifrån hur mycket värdet föll.
-      - name: "ADS-B sessionsstart"
-        unique_id: adsb_session_start
-        value_template: "{{ value_json.total.start | int(0) }}"
-        icon: mdi:clock-start
-
       # Längsta avstånd sedan readsb startade. readsb rapporterar meter.
       - name: "ADS-B max avstånd"
         unique_id: adsb_max_distance
@@ -170,85 +129,47 @@ rest:
         state_class: measurement
         icon: mdi:radio-tower
 
-# Monotont växande räkning av flygplan, byggd på råvärdet ovan.
-#
-# Råvärdet svänger nedåt när readsb åldrar ut falska spår, men det är en
-# eftersläpning i mätningen — antalet flygplan som passerat kan inte minska.
-# Därför förs en högvattenmärkning (`hwm`): bara det som överstiger det
-# högsta tidigare värdet räknas som nya flygplan. Svackorna passerar spårlöst.
-#
-# En omstart av readsb nollställer råvärdet, och känns igen exakt på att
-# `sensor.ads_b_sessionsstart` ändrats — då läggs hela det nya råvärdet till
-# i stället för differensen.
-#
-# Ett tomt `session`-attribut betyder "första avläsningen", inte "readsb har
-# startat om" — REST-sensorn för sessionsstart hinner vara `unknown` när den
-# första triggern går. Utan det undantaget lade sensorn till hela råvärdet en
-# extra gång direkt efter varje omladdning av konfigurationen.
-#
-# Trigger-baserade template-sensorer återställer sitt tillstånd efter en
-# HA-omstart, så både summan och `hwm` överlever. Skulle de ändå saknas
-# börjar sensorn om från råvärdet i stället för att dubbelräkna.
-template:
-  - trigger:
-      - platform: state
-        entity_id: sensor.flygplan_totalt
+  # =============================================================================
+  # Unika flygplan per dygn och månad
+  # =============================================================================
+  # Räkningen görs på Pi:n av tjänsten `adsb-unique-count`, som samlar
+  # ICAO-adresserna ur aircraft.json. Se ~/project/fr24-feeder, rollen
+  # `unique_count`.
+  #
+  # Varför inte i Home Assistant: readsbs egen statistik kan inte svara på
+  # frågan. `total.tracks.all` räknar spår, inte flygplan, och nästan alla spår
+  # är CRC-korrigerade enmeddelandespöken. Differensen `all - single_message`
+  # ser ut som ett antal flygplan men är en jämviktsnivå kring 105 som inte
+  # växer - uppmätt 4 september 2026 växte `all` med 56 och `single_message` med
+  # 55 på sju minuter medan differensen stod stilla:
+  #
+  #   16:36:49  all=2838  single=2733  diff=105
+  #   16:39:49  all=2864  single=2759  diff=105
+  #   16:43:34  all=2894  single=2788  diff=106
+  #
+  # En sensor byggd på den differensen visade 124 flygplan samma dygn som
+  # Flightradar24 rapporterade 72. Den är borttagen, liksom de utility_meter
+  # som räknade på den.
+  #
+  # Bara ICAO-adressen identifierar ett flygplan, och unionen av adresser över
+  # ett dygn är det enda som ger rätt tal.
+  - resource: http://192.168.1.111/readsb/unique.json
+    scan_interval: 60
+    timeout: 10
     sensor:
-      - name: "Flygplan ackumulerat"
-        unique_id: adsb_aircraft_cumulative
+      - name: "Flygplan i dag"
+        unique_id: adsb_unique_today
+        value_template: "{{ value_json.today | int(0) }}"
         unit_of_measurement: "st"
-        state_class: total_increasing
-        icon: mdi:counter
-        state: >-
-          {% set raw = states('sensor.flygplan_totalt') | int(-1) %}
-          {% set prev = this.state | int(-1) %}
-          {% set hwm = this.attributes.get('hwm', -1) | int(-1) %}
-          {% set prev_session = this.attributes.get('session', '') | string %}
-          {% set s = states('sensor.ads_b_sessionsstart') %}
-          {% set session = s if s not in ['unknown', 'unavailable', ''] else prev_session %}
-          {% if raw < 0 %}
-            {{ prev if prev >= 0 else 0 }}
-          {% elif prev < 0 or hwm < 0 %}
-            {{ raw }}
-          {% elif prev_session != '' and session != prev_session %}
-            {{ prev + raw }}
-          {% elif raw > hwm %}
-            {{ prev + raw - hwm }}
-          {% else %}
-            {{ prev }}
-          {% endif %}
-        attributes:
-          hwm: >-
-            {% set raw = states('sensor.flygplan_totalt') | int(-1) %}
-            {% set hwm = this.attributes.get('hwm', -1) | int(-1) %}
-            {% set prev_session = this.attributes.get('session', '') | string %}
-            {% set s = states('sensor.ads_b_sessionsstart') %}
-            {% set session = s if s not in ['unknown', 'unavailable', ''] else prev_session %}
-            {% if raw < 0 %}
-              {{ hwm if hwm >= 0 else 0 }}
-            {% elif hwm < 0 or (prev_session != '' and session != prev_session) or raw > hwm %}
-              {{ raw }}
-            {% else %}
-              {{ hwm }}
-            {% endif %}
-          session: >-
-            {% set prev_session = this.attributes.get('session', '') | string %}
-            {% set s = states('sensor.ads_b_sessionsstart') %}
-            {{ s if s not in ['unknown', 'unavailable', ''] else prev_session }}
+        state_class: measurement
+        icon: mdi:airplane-clock
 
-# Dygns- och månadsvis antal flygplan, byggt på den ackumulerande sensorn ovan.
-# Källan måste vara monotont växande — se kommentaren vid `Flygplan totalt` för
-# vad som händer när den inte är det.
-utility_meter:
-  flygplan_per_dygn:
-    source: sensor.flygplan_ackumulerat
-    name: Flygplan per dygn
-    cycle: daily
-
-  flygplan_per_manad:
-    source: sensor.flygplan_ackumulerat
-    name: Flygplan per månad
-    cycle: monthly
+      - name: "Flygplan denna månad"
+        unique_id: adsb_unique_month
+        value_template: "{{ value_json.this_month | int(0) }}"
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:calendar-month
 
 automation:
   # Larmet som hade fångat den 3 september inom en kvart i stället för ett dygn.
