@@ -1,0 +1,159 @@
+# =============================================================================
+# ADS-B & AIS feeder — Raspberry Pi "adsb"
+# =============================================================================
+# Statistik från flygplans- och fartygsmottagaren. Pi:n serverar allt över HTTP;
+# ingen integration, inget tillägg och inga inloggningsuppgifter behövs.
+#
+# Källor:
+#   http://192.168.1.111/readsb/stats.json       readsb: brus, avkodning, signal
+#   http://192.168.1.111/readsb/aircraft.json    readsb: flygplan just nu
+#   http://192.168.1.111:8754/monitor.json       fr24feed: länken till FR24
+#   http://192.168.1.111:8100/api/stat.json      AIS-catcher: fartyg
+#
+# Adressen är WiFi-gränssnittet (Fixed IP i UniFi mot 88:a2:9e:fe:66:46).
+# Pi:n har även 192.168.1.21 på eth0, men nätverkskabeln sitter inte alltid i.
+#
+# readsb serverar inte själv över HTTP — ett lighttpd-alias exponerar
+# /run/readsb. Se ~/project/fr24-feeder, rollen `readsb`.
+#
+# VIKTIGAST AV SENSORERNA: brusgolvet.
+# Det är den enda mätpunkten som avslöjar överstyrning orsakad av starka
+# signaler UTANFÖR 1090 MHz, vilket `strong_signals` missar helt. Den
+# 3 september 2026 steg brusgolvet från -38 till -22 dB efter att mottagaren
+# flyttats utan att gain trimmades om. ADS-B tappade 97 % av sin avkodning,
+# och det upptäcktes först ett dygn senare via Flightradar24:s egen statistik.
+#
+#   friskt      -38 till -44 dB
+#   förhöjt     -35 till -30 dB   störkälla nära, eller gain något för hög
+#   överstyrt   över -30 dB       gain klart för hög, eller stark störning
+# =============================================================================
+
+rest:
+  # --- readsb: mottagarhälsa och avkodning ----------------------------------
+  - resource: http://192.168.1.111/readsb/stats.json
+    scan_interval: 60
+    timeout: 10
+    sensor:
+      - name: "ADS-B brusgolv"
+        unique_id: adsb_noise_floor
+        value_template: "{{ value_json.last1min.local.noise | float(0) | round(1) }}"
+        unit_of_measurement: "dB"
+        state_class: measurement
+        icon: mdi:waveform
+
+      - name: "ADS-B meddelanden per minut"
+        unique_id: adsb_messages_per_minute
+        value_template: >-
+          {{ value_json.last1min.local.accepted | default([0], true) | sum }}
+        unit_of_measurement: "msg/min"
+        state_class: measurement
+        icon: mdi:radio-tower
+
+      - name: "ADS-B toppsignal"
+        unique_id: adsb_peak_signal
+        value_template: "{{ value_json.last1min.local.peak_signal | float(0) | round(1) }}"
+        unit_of_measurement: "dBFS"
+        state_class: measurement
+        icon: mdi:signal
+
+      # Tappade samples är den definitiva indikatorn på USB- eller värmeproblem.
+      # Ska vara noll. 5,25 miljarder samples utan en enda tappad är normalt.
+      - name: "ADS-B tappade samples"
+        unique_id: adsb_samples_dropped
+        value_template: "{{ value_json.total.local.samples_dropped | int(0) }}"
+        state_class: total_increasing
+        icon: mdi:alert-circle-outline
+
+  # --- readsb: flygplan just nu ----------------------------------------------
+  - resource: http://192.168.1.111/readsb/aircraft.json
+    scan_interval: 30
+    timeout: 10
+    sensor:
+      - name: "Flygplan spårade"
+        unique_id: adsb_aircraft_tracked
+        value_template: "{{ value_json.aircraft | length }}"
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:airplane
+
+      - name: "Flygplan med position"
+        unique_id: adsb_aircraft_with_position
+        value_template: >-
+          {{ value_json.aircraft | selectattr('lat', 'defined') | list | length }}
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:map-marker-radius
+
+  # --- Flightradar24-länken ---------------------------------------------------
+  - resource: http://192.168.1.111:8754/monitor.json
+    scan_interval: 60
+    timeout: 10
+    sensor:
+      # Fälten är strängar i fr24feeds JSON, därav int-konverteringen.
+      - name: "FR24 flygplan skickade"
+        unique_id: fr24_aircraft_sent
+        value_template: "{{ value_json.feed_num_ac_tracked | int(0) }}"
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:upload-network
+    binary_sensor:
+      - name: "FR24 feeder ansluten"
+        unique_id: fr24_feed_connected
+        value_template: "{{ value_json.feed_status == 'connected' }}"
+        device_class: connectivity
+
+  # --- AIS ---------------------------------------------------------------------
+  - resource: http://192.168.1.111:8100/api/stat.json
+    scan_interval: 60
+    timeout: 10
+    sensor:
+      - name: "AIS spårade objekt"
+        unique_id: ais_vessel_count
+        value_template: "{{ value_json.vessel_count | int(0) }}"
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:ferry
+
+      - name: "AIS meddelanden per sekund"
+        unique_id: ais_message_rate
+        value_template: "{{ value_json.msg_rate | float(0) | round(2) }}"
+        unit_of_measurement: "msg/s"
+        state_class: measurement
+        icon: mdi:radio-tower
+
+automation:
+  # Larmet som hade fångat den 3 september inom en kvart i stället för ett dygn.
+  # `for` är avsiktligt satt till 15 minuter: brusgolvet fluktuerar kortvarigt,
+  # och ett larm som utlöses av en minuts avvikelse blir självt till brus.
+  - id: adsb_noise_floor_elevated
+    alias: "ADS-B: brusgolvet har stigit"
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.ads_b_brusgolv
+        above: -35
+        for: "00:15:00"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "ADS-B: förhöjt brusgolv"
+          message: >-
+            Brusgolvet ligger på {{ states('sensor.ads_b_brusgolv') }} dB
+            (friskt: -38 till -44). Antingen är gain för hög, eller så finns en
+            störkälla nära antennen. Kör `sudo fr24-health` på adsb.
+
+  - id: adsb_feed_disconnected
+    alias: "ADS-B: feedern tappade anslutningen till FR24"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.fr24_feeder_ansluten
+        to: "off"
+        for: "00:10:00"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "FR24: feedern är frånkopplad"
+          message: >-
+            fr24feed har varit frånkopplad i tio minuter. Kontrollera att
+            Raspberry Pi:n svarar och att readsb kör.
