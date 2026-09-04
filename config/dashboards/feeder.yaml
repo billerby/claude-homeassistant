@@ -1,0 +1,229 @@
+# =============================================================================
+# Feeder — ADS-B och AIS
+# =============================================================================
+# Sensorerna definieras i config/packages/adsb_feeder.yaml och läses från
+# Raspberry Pi:n `adsb` över HTTP.
+#
+# Diagramval:
+#   - Varje diagram har EN y-axel. Brusgolv (dB) och meddelanden (antal) är
+#     olika storheter och delar därför inte diagram - dubbla y-axlar gör
+#     kurvorna omöjliga att jämföra och antyder samband som inte finns.
+#   - Enkelserie-diagram saknar legend; rubriken namnger serien.
+#   - Nuläget visas som siffror, inte som diagram. En kurva över "tappade
+#     samples" som alltid är noll säger ingenting.
+#   - Anslutningsläget visas som tidslinje, inte som kurva.
+#
+# Färger:
+#   Kategoriska serier använder slot 1 (#2a78d6) och slot 2 (#eb6834).
+#   Paret är validerat: ΔE 24,7 vid protanopi och 33,6 vid normalseende, mot
+#   målet ≥8 respektive ≥15.
+#   Tröskellinjerna använder den reserverade statuspaletten och bär alltid
+#   text, så färgen aldrig ensam betyder något.
+# =============================================================================
+
+title: Feeder
+views:
+  - title: Feeder
+    path: feeder
+    icon: mdi:radar
+    cards:
+
+      # --- Nuläget: siffror, inte diagram --------------------------------------
+      - type: glance
+        title: Just nu
+        columns: 3
+        state_color: true
+        entities:
+          - entity: sensor.flygplan_sparade
+            name: Flygplan
+          - entity: sensor.ads_b_meddelanden_per_minut
+            name: Msg/min
+          - entity: sensor.ads_b_brusgolv
+            name: Brusgolv
+          - entity: sensor.ais_sparade_objekt
+            name: Fartyg
+          - entity: binary_sensor.fr24_feeder_ansluten
+            name: FR24
+          - entity: sensor.ads_b_tappade_samples
+            name: Tappade
+
+      # --- Brusgolvet: det diagnostiska diagrammet ------------------------------
+      # Enda måttet som avslöjar kompression orsakad av starka signaler utanför
+      # 1090 MHz. Trösklarna är uppmätta, inte gissade: gain 40.2 gav -37.7 dB
+      # och 4169 avkodade meddelanden, gain 44.5 gav -28.5 dB och 709.
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        span:
+          end: minute
+        header:
+          show: true
+          title: Brusgolv
+          show_states: true
+          colorize_states: false
+        yaxis:
+          - min: -50
+            max: -15
+            decimals: 0
+            apex_config:
+              tickAmount: 5
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 240
+          annotations:
+            yaxis:
+              - y: -35
+                borderColor: '#fab219'
+                strokeDashArray: 4
+                label:
+                  text: förhöjt
+                  position: left
+                  textAnchor: start
+                  style:
+                    background: '#fab219'
+                    color: '#0b0b0b'
+              - y: -30
+                borderColor: '#d03b3b'
+                strokeDashArray: 4
+                label:
+                  text: överstyrt
+                  position: left
+                  textAnchor: start
+                  style:
+                    background: '#d03b3b'
+                    color: '#ffffff'
+        series:
+          - entity: sensor.ads_b_brusgolv
+            name: Brusgolv
+            color: '#2a78d6'
+            type: line
+            stroke_width: 2
+            float_precision: 1
+            group_by:
+              func: avg
+              duration: 5m
+
+      # --- Avkodning ------------------------------------------------------------
+      # Egen y-axel-storhet, därför eget diagram. Antalet mäter närhet mer än
+      # täckning: ett flygplan rakt över ger hundratals meddelanden, tio plan
+      # vid horisonten ger få.
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        span:
+          end: minute
+        header:
+          show: true
+          title: Avkodade meddelanden
+          show_states: true
+          colorize_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 220
+        series:
+          - entity: sensor.ads_b_meddelanden_per_minut
+            name: Meddelanden
+            color: '#2a78d6'
+            type: area
+            opacity: 0.15
+            stroke_width: 2
+            group_by:
+              func: avg
+              duration: 5m
+
+      # --- Flygplan: två serier, samma storhet ----------------------------------
+      # Skillnaden mellan spårade och de med position visar hur många som bara
+      # hörs på Mode-S utan att positionen avkodats.
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        span:
+          end: minute
+        header:
+          show: true
+          title: Flygplan
+          show_states: true
+          colorize_states: true
+        apex_config:
+          legend:
+            show: true
+            position: bottom
+          chart:
+            height: 220
+        all_series_config:
+          type: line
+          stroke_width: 2
+          group_by:
+            func: max
+            duration: 5m
+        series:
+          - entity: sensor.flygplan_sparade
+            name: Spårade
+            color: '#2a78d6'
+          - entity: sensor.flygplan_med_position
+            name: Med position
+            color: '#eb6834'
+
+      # --- AIS ------------------------------------------------------------------
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        span:
+          end: minute
+        header:
+          show: true
+          title: Fartyg och sjömärken
+          show_states: true
+          colorize_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 220
+        series:
+          - entity: sensor.ais_sparade_objekt
+            name: Spårade objekt
+            color: '#2a78d6'
+            type: line
+            stroke_width: 2
+            group_by:
+              func: max
+              duration: 5m
+
+      # --- Länkens tillgänglighet -----------------------------------------------
+      # Ett på/av-tillstånd över tid är en tidslinje, inte en kurva.
+      - type: history-graph
+        title: Anslutning till Flightradar24
+        hours_to_show: 24
+        entities:
+          - entity: binary_sensor.fr24_feeder_ansluten
+            name: FR24
+
+      # --- Signalstyrka ---------------------------------------------------------
+      # Egen storhet (dBFS), därför skilt från brusgolvet i dB. Toppsignalen
+      # visar hur starkt det närmaste planet hörs; närmar den sig 0 mättas
+      # mottagaren.
+      - type: custom:apexcharts-card
+        graph_span: 24h
+        span:
+          end: minute
+        header:
+          show: true
+          title: Toppsignal
+          show_states: true
+          colorize_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+        series:
+          - entity: sensor.ads_b_toppsignal
+            name: Toppsignal
+            color: '#2a78d6'
+            type: line
+            stroke_width: 2
+            float_precision: 1
+            group_by:
+              func: max
+              duration: 5m
