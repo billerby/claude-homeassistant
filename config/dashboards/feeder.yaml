@@ -50,8 +50,8 @@ views:
             name: Plan i dag
           - entity: sensor.ads_b_max_avstand
             name: Max avstånd
-          - entity: sensor.flygplan_totalt
-            name: Sedan start
+          - entity: sensor.flygplan_per_manad
+            name: Denna månad
 
       # --- Brusgolvet: det diagnostiska diagrammet ------------------------------
       # Enda måttet som avslöjar kompression orsakad av starka signaler utanför
