@@ -780,9 +780,15 @@ views:
       title: Charging
       state_color: true
       entities:
+      - entity: sensor.otto_von_bismarck_charging_state
+        name: Charging State
+        icon: mdi:ev-station
       - entity: sensor.otto_von_bismarck_battery
         name: Battery Level
         icon: mdi:battery
+      - entity: sensor.otto_von_bismarck_usable_battery
+        name: Usable Battery
+        icon: mdi:battery-heart-variant
       - entity: sensor.otto_von_bismarck_charge_limit
         name: Charge Limit
         icon: mdi:battery-charging-100
@@ -793,6 +799,12 @@ views:
         icon: mdi:flash
       - entity: sensor.otto_von_bismarck_charging_amps
         name: Charging Current
+        icon: mdi:current-ac
+      - entity: sensor.otto_von_bismarck_charger_voltage
+        name: Charging Voltage
+        icon: mdi:sine-wave
+      - entity: sensor.otto_von_bismarck_charger_phases
+        name: Phases
         icon: mdi:current-ac
       - entity: sensor.otto_von_bismarck_energy_added
         name: Energy Added
@@ -835,6 +847,19 @@ views:
         name: Rear L
       - entity: sensor.otto_von_bismarck_tpms_rear_right
         name: Rear R
+    - type: glance
+      title: Tire Warnings
+      state_color: true
+      columns: 4
+      entities:
+      - entity: binary_sensor.otto_von_bismarck_tpms_soft_warning_front_left
+        name: Front L
+      - entity: binary_sensor.otto_von_bismarck_tpms_soft_warning_front_right
+        name: Front R
+      - entity: binary_sensor.otto_von_bismarck_tpms_soft_warning_rear_left
+        name: Rear L
+      - entity: binary_sensor.otto_von_bismarck_tpms_soft_warning_rear_right
+        name: Rear R
     - type: entities
       title: Vehicle
       state_color: true
@@ -848,6 +873,9 @@ views:
       - entity: binary_sensor.otto_von_bismarck_online
         name: Online
         secondary_info: last-changed
+      - entity: binary_sensor.otto_von_bismarck_update_available
+        name: Software Update
+        icon: mdi:cellphone-arrow-down
       - entity: device_tracker.otto_von_bismarck_location_tracker
         name: Location
         icon: mdi:crosshairs-gps

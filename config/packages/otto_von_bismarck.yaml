@@ -125,6 +125,47 @@ mqtt:
       unit_of_measurement: h
       icon: mdi:clock-end
 
+    # --- Added 2026-06-16: extra read-only TeslaMate telemetry -------------
+    # Topics verified present on the live broker (v4.0.1). See
+    # ../../docs/teslamate-to-homeassistant.md.
+
+    # Usable SoC — can differ from battery_level in cold weather; candidate
+    # for the Easee smart-charging plan's target/current-SoC reads.
+    - name: "Usable Battery"
+      unique_id: ovb_usable_battery_level
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/usable_battery_level"
+      unit_of_measurement: "%"
+      device_class: battery
+      state_class: measurement
+      icon: mdi:battery-heart-variant
+
+    # Tesla's own charging_state enum — more granular than the derived
+    # binary_sensor.…charging (which is just state == 'charging'). Plain text
+    # (no enum device_class) so an unlisted value never trips a validation
+    # warning. Values seen: Charging / Complete / Stopped / Disconnected /
+    # NoPower / Starting / Calibrating.
+    - name: "Charging State"
+      unique_id: ovb_charging_state
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charging_state"
+      icon: mdi:ev-station
+
+    - name: "Charger Voltage"
+      unique_id: ovb_charger_voltage
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charger_voltage"
+      unit_of_measurement: V
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Charger Phases"
+      unique_id: ovb_charger_phases
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/charger_phases"
+      state_class: measurement
+      icon: mdi:current-ac
+
     # TPMS — TeslaMate already publishes bar (the old tesla_custom gave psi,
     # which the templates in configuration.yaml converted; those templates are
     # now pass-through — see the migration doc).
@@ -191,6 +232,55 @@ mqtt:
       payload_on: "ON"
       payload_off: "OFF"
       device_class: connectivity
+
+    # --- Added 2026-06-16 ----------------------------------------------------
+    # Software-update pending. Replaces the read-only side of the lost
+    # update.…software_update entity from the tesla_custom cutover.
+    - name: "Update Available"
+      unique_id: ovb_update_available
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/update_available"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: update
+
+    # TPMS soft-pressure warnings — boolean flags straight from the car, so
+    # alerts don't have to threshold the bar values themselves. on = warning.
+    - name: "Tpms Soft Warning Front Left"
+      unique_id: ovb_tpms_soft_warning_fl
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_soft_warning_fl"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: problem
+      icon: mdi:car-tire-alert
+
+    - name: "Tpms Soft Warning Front Right"
+      unique_id: ovb_tpms_soft_warning_fr
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_soft_warning_fr"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: problem
+      icon: mdi:car-tire-alert
+
+    - name: "Tpms Soft Warning Rear Left"
+      unique_id: ovb_tpms_soft_warning_rl
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_soft_warning_rl"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: problem
+      icon: mdi:car-tire-alert
+
+    - name: "Tpms Soft Warning Rear Right"
+      unique_id: ovb_tpms_soft_warning_rr
+      device: *ovb_device
+      state_topic: "teslamate/cars/1/tpms_soft_warning_rr"
+      payload_on: "true"
+      payload_off: "false"
+      device_class: problem
+      icon: mdi:car-tire-alert
 
   device_tracker:
     - name: "Location Tracker"
