@@ -56,6 +56,32 @@ rest:
         state_class: measurement
         icon: mdi:signal
 
+      # Antal flygplan sedan readsb startade. readsb räknar "spår", och drar
+      # man inte bort enmeddelandespåren får man ett tal som är tjugo gånger
+      # för högt: 870 mot 50. Ett enmeddelandespår är en ICAO-kod som avkodats
+      # en enda gång och aldrig återkom — nästan alltid en CRC-korrigerad
+      # falsk träff, inte ett flygplan.
+      #
+      # Nollställs när readsb startar om. `total_increasing` hanterar det:
+      # HA tolkar fallet som en nollställning och fortsätter ackumulera, så
+      # utility_meter-värdena nedan överlever en omstart.
+      - name: "Flygplan totalt"
+        unique_id: adsb_aircraft_total
+        value_template: >-
+          {{ (value_json.total.tracks.all | int(0))
+             - (value_json.total.tracks.single_message | int(0)) }}
+        unit_of_measurement: "st"
+        state_class: total_increasing
+        icon: mdi:counter
+
+      # Längsta avstånd sedan readsb startade. readsb rapporterar meter.
+      - name: "ADS-B max avstånd"
+        unique_id: adsb_max_distance
+        value_template: "{{ (value_json.total.max_distance | float(0) / 1852) | round(1) }}"
+        unit_of_measurement: "nm"
+        state_class: measurement
+        icon: mdi:arrow-expand-horizontal
+
       # Tappade samples är den definitiva indikatorn på USB- eller värmeproblem.
       # Ska vara noll. 5,25 miljarder samples utan en enda tappad är normalt.
       - name: "ADS-B tappade samples"
@@ -120,6 +146,20 @@ rest:
         unit_of_measurement: "msg/s"
         state_class: measurement
         icon: mdi:radio-tower
+
+# Dygns- och månadsvis antal flygplan, byggt på den ackumulerande sensorn ovan.
+# utility_meter räknar differenser, så en omstart av readsb mitt på dagen
+# nollställer inte dygnsvärdet.
+utility_meter:
+  flygplan_per_dygn:
+    source: sensor.flygplan_totalt
+    name: Flygplan per dygn
+    cycle: daily
+
+  flygplan_per_manad:
+    source: sensor.flygplan_totalt
+    name: Flygplan per månad
+    cycle: monthly
 
 automation:
   # Larmet som hade fångat den 3 september inom en kvart i stället för ett dygn.
