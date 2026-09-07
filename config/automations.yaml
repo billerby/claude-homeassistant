@@ -135,7 +135,7 @@
       seconds: 0
   action:
   - type: turn_off
-    device_id: 67a124b927d769552c7e234b1e9a832d
+    device_id: f6934d07a9dc338f48993a099de68d39
     entity_id: switch.bastu_och_tvattstall_channel_1
     domain: switch
   mode: single
@@ -208,7 +208,7 @@
   conditions: []
   actions:
   - type: turn_on
-    device_id: 8458999bec93d003d96f2db50fa93c52
+    device_id: 0e1fb51707814462dca60b3b588b0aeb
     entity_id: 60fd53bbc70723238041c7ed70b73e9e
     domain: switch
   mode: single
@@ -222,7 +222,7 @@
   conditions: []
   actions:
   - type: turn_off
-    device_id: 8458999bec93d003d96f2db50fa93c52
+    device_id: 0e1fb51707814462dca60b3b588b0aeb
     entity_id: 60fd53bbc70723238041c7ed70b73e9e
     domain: switch
   mode: single
@@ -285,7 +285,7 @@
   conditions: []
   actions:
   - type: turn_on
-    device_id: a840ee3c769b5a80650759114e7fd34e
+    device_id: 8cc16bcbbc951fad62584e23d26dad3f
     entity_id: c0fa37a062e756ff5423cb453306dffc
     domain: switch
   mode: single
@@ -298,7 +298,7 @@
   conditions: []
   actions:
   - type: turn_off
-    device_id: a840ee3c769b5a80650759114e7fd34e
+    device_id: 8cc16bcbbc951fad62584e23d26dad3f
     entity_id: c0fa37a062e756ff5423cb453306dffc
     domain: switch
   mode: single
@@ -344,7 +344,7 @@
       filename: /config/www/camera_snapshots/daily_snapshot_{{ now().strftime('%Y-%m-%d_%H')
         }}.jpg
     target:
-      device_id: c5686e55956e6b76197f48c082be5e1f
+      entity_id: camera.g3_flex_high
   mode: single
 - alias: Backup Log file on shutdown
   trigger:
@@ -459,7 +459,7 @@
   description: ''
   triggers:
   - type: changed_states
-    device_id: c5e8c98bd4b18c95ef2f1d28e8772e8e
+    device_id: 907122f14a2292018984da577bef7e8e
     entity_id: 6a78c9516e9d8f47ab85067c519b59b1
     domain: switch
     trigger: device
