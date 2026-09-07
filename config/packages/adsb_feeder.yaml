@@ -6,9 +6,10 @@
 #
 # Källor:
 #   http://192.168.1.111/readsb/stats.json       readsb: brus, avkodning, signal
-#   http://192.168.1.111/readsb/aircraft.json    readsb: flygplan just nu
+#   http://192.168.1.111/readsb/tracked.json     VILKA flygplan och fartyg
+#   http://192.168.1.111/readsb/unique.json      unika flygplan per dygn/månad
 #   http://192.168.1.111:8754/monitor.json       fr24feed: länken till FR24
-#   http://192.168.1.111:8100/api/stat.json      AIS-catcher: fartyg
+#   http://192.168.1.111:8100/api/stat.json      AIS-catcher: statistik
 #
 # Adressen är WiFi-gränssnittet (Fixed IP i UniFi mot 88:a2:9e:fe:66:46).
 # Pi:n har även 192.168.1.21 på eth0, men nätverkskabeln sitter inte alltid i.
@@ -72,25 +73,92 @@ rest:
         state_class: total_increasing
         icon: mdi:alert-circle-outline
 
-  # --- readsb: flygplan just nu ----------------------------------------------
-  - resource: http://192.168.1.111/readsb/aircraft.json
+  # --- Vilka som spåras just nu -----------------------------------------------
+  # Ersätter den tidigare hämtningen av aircraft.json. Tjänsten `feeder-tracked`
+  # på Pi:n slår ihop readsbs flygplan och AIS-catchers fartyg till en fil, och
+  # gör tre saker som är obekväma i en Jinja-mall:
+  #
+  #   * översätter AIS-koderna — shiptype 60 är "Passagerarfartyg", och
+  #     mmsi 992651007 är inte ett fartyg alls utan ett virtuellt sjömärke
+  #   * räknar avstånd och bäring från mottagarens position, i nautiska mil
+  #   * kastar de fält inget kort visar: ships.json är 20 kB, tracked.json 6 kB
+  #
+  # unique_id:na är desamma som när sensorerna hämtades ur aircraft.json, så
+  # historiken i recorder följer med. Se ~/project/fr24-feeder, rollen `tracked`.
+  #
+  # Räknarna och listorna är skilda entiteter med flit, se kommentaren vid
+  # "Flygplanslista". Listorna ligger i attributet `list`, sorterade med det
+  # närmaste först, och är undantagna i recorder — se configuration.yaml.
+  - resource: http://192.168.1.111/readsb/tracked.json
     scan_interval: 30
     timeout: 10
     sensor:
       - name: "Flygplan spårade"
         unique_id: adsb_aircraft_tracked
-        value_template: "{{ value_json.aircraft | length }}"
+        value_template: "{{ value_json.aircraft.count | int(0) }}"
         unit_of_measurement: "st"
         state_class: measurement
         icon: mdi:airplane
 
       - name: "Flygplan med position"
         unique_id: adsb_aircraft_with_position
-        value_template: >-
-          {{ value_json.aircraft | selectattr('lat', 'defined') | list | length }}
+        value_template: "{{ value_json.aircraft.with_position | int(0) }}"
         unit_of_measurement: "st"
         state_class: measurement
         icon: mdi:map-marker-radius
+
+      # Fartyg, till skillnad från "AIS spårade objekt" nedan: bara det som
+      # faktiskt är ett fartyg, och bara det som hörts de senaste tio
+      # minuterna. Talen ska inte stämma överens — se kommentaren där.
+      - name: "Fartyg spårade"
+        unique_id: ais_vessels_tracked
+        value_template: "{{ value_json.vessels.count | int(0) }}"
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:ferry
+
+      # Det mesta i hamnen ligger förtöjt. Gränsen går vid en halv knop, inte
+      # noll, för GPS-bruset gör att stillaliggande fartyg rapporterar 0,1-0,3.
+      - name: "Fartyg under gång"
+        unique_id: ais_vessels_moving
+        value_template: "{{ value_json.vessels.moving | int(0) }}"
+        unit_of_measurement: "st"
+        state_class: measurement
+        icon: mdi:ferry
+
+      # --- Listorna, som egna entiteter -------------------------------------
+      # Varför inte som attribut på räknarna ovan: recorder kan undanta
+      # entiteter, men inte enskilda attribut. Ett `list` på "Flygplan spårade"
+      # hade tvingat fram ett val mellan att spara några kilobyte var
+      # trettionde sekund, eller att undanta entiteten och därmed tappa
+      # 24-timmarsdiagrammet som ritar just den. Två bärare kostar två rader i
+      # entitetsregistret och löser båda.
+      #
+      # Tillståndet är antalet, samma som räknaren - en REST-sensors tillstånd
+      # får vara högst 255 tecken, så listan kan aldrig ligga där.
+      - name: "Flygplanslista"
+        unique_id: adsb_aircraft_list
+        value_template: "{{ value_json.aircraft.count | int(0) }}"
+        json_attributes_path: "$.aircraft"
+        json_attributes:
+          - list
+          - with_position
+          - max_distance_nm
+        unit_of_measurement: "st"
+        icon: mdi:format-list-bulleted
+
+      - name: "Fartygslista"
+        unique_id: ais_vessel_list
+        value_template: "{{ value_json.vessels.count | int(0) }}"
+        json_attributes_path: "$.vessels"
+        json_attributes:
+          - list
+          - moving
+          - aton
+          - known
+          - max_distance_nm
+        unit_of_measurement: "st"
+        icon: mdi:format-list-bulleted
 
   # --- Flightradar24-länken ---------------------------------------------------
   - resource: http://192.168.1.111:8754/monitor.json
@@ -115,6 +183,10 @@ rest:
     scan_interval: 60
     timeout: 10
     sensor:
+      # AIS-catchers eget tal: allt den håller i minnet, i 30 minuter efter
+      # sista meddelandet, sjömärken och basstationer inräknade. "Fartyg
+      # spårade" ovan är delmängden som är fartyg och hörts senaste tio
+      # minuterna. 142 mot 23 är normalt, inte ett fel.
       - name: "AIS spårade objekt"
         unique_id: ais_vessel_count
         value_template: "{{ value_json.vessel_count | int(0) }}"
