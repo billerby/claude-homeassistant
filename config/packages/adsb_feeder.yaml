@@ -178,6 +178,14 @@ rest:
         value_template: "{{ value_json.feed_status == 'connected' }}"
         device_class: connectivity
 
+      # Ansluten till FR24 säger inget om att det finns något att skicka.
+      # rx_connected är länken fr24feed -> readsb, och den är den som bryts
+      # när dongeln eller readsb faller bort. Strängen "1", inte talet.
+      - name: "FR24 tar emot från readsb"
+        unique_id: fr24_rx_connected
+        value_template: "{{ value_json.rx_connected == '1' }}"
+        device_class: connectivity
+
   # --- AIS ---------------------------------------------------------------------
   - resource: http://192.168.1.111:8100/api/stat.json
     scan_interval: 60
@@ -279,3 +287,37 @@ automation:
           message: >-
             fr24feed har varit frånkopplad i tio minuter. Kontrollera att
             Raspberry Pi:n svarar och att readsb kör.
+
+  # Larmet som hade fångat den 17 september. ADS-B-dongeln föll då av USB-bussen
+  # och readsb startade om var tionde sekund i fyra dygn utan att något av
+  # larmen ovan löste ut: feed_status stod kvar på connected (fr24feed pratade
+  # med FR24, den hade bara inget att skicka), och brusgolvet steg inte - det
+  # försvann, vilket numeric_state inte utlöser på.
+  #
+  # unknown OCH unavailable: recorder visar att brusgolvet stod på unknown hela
+  # avbrottet. Pi:n svarade, men med lighttpds 404-sida eftersom /run/readsb
+  # inte fanns. unavailable blir det bara om Pi:n inte svarar alls.
+  #
+  # 15 minuter på rx_connected ger fr24-watchdog (var femte minut på Pi:n) en
+  # chans att laga ett fel i fr24feed innan larmet går.
+  - id: adsb_readsb_no_data
+    alias: "ADS-B: readsb levererar ingen data"
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: sensor.ads_b_brusgolv
+        to: ["unknown", "unavailable"]
+        for: "00:10:00"
+      - platform: state
+        entity_id: binary_sensor.fr24_tar_emot_fran_readsb
+        to: "off"
+        for: "00:15:00"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "ADS-B: ingen data från readsb"
+          message: >-
+            readsb levererar inget till fr24feed. Vanligast är att dongeln
+            fallit av USB. På adsb: `journalctl -u readsb -n 20` och `lsusb`.
+            Syns inte serienumret 28389749, sätt dongeln i en annan port -
+            readsb väljer på serienummer, så porten spelar ingen roll.
