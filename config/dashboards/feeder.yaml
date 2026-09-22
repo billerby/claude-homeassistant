@@ -75,15 +75,20 @@ views:
       # glansen ovan gäller alltid allt som hörs. Att listan är tom är
       # normaltillståndet mellan passager - med 38 nm räckvidd och ett
       # sextiotal unika flygplan per dygn går det minuter mellan planen.
+      #
+      # Metriska enheter. Pi:n levererar flygets egna - fot, knop, sjömil - och
+      # omräkningen görs här, så tracked.json förblir samma som readsb.
+      # Höjden avrundas till tiotal meter: den sänds i steg om 25 fot (7,6 m),
+      # så en entalssiffra vore falsk precision.
       - type: markdown
         title: Flygplan just nu
         content: |
           {% set ac = state_attr('sensor.flygplanslista', 'list') %}
           {% if ac %}
-          | Flight | Höjd (ft) | Fart | Avstånd |
+          | Flight | Höjd | Fart | Avstånd |
           |---|--:|--:|--:|
           {% for a in ac -%}
-          | {{ a.flight or a.hex }} | {{ 'mark' if a.on_ground else (a.altitude_ft if a.altitude_ft is not none else '–') }} | {{ a.speed_kt if a.speed_kt is not none else '–' }} kt | {{ a.distance_nm if a.distance_nm is not none else '–' }} nm {{ a.direction or '' }} |
+          | {{ a.flight or a.hex }} | {{ 'mark' if a.on_ground else (((a.altitude_ft * 0.3048) | round(-1) | int ~ ' m') if a.altitude_ft is not none else '–') }} | {{ ((a.speed_kt * 1.852) | round | int ~ ' km/h') if a.speed_kt is not none else '–' }} | {{ ((a.distance_nm * 1.852) | round(1) ~ ' km') if a.distance_nm is not none else '–' }} {{ a.direction or '' }} |
           {% endfor %}
           {% else %}
           Inget flygplan hörs just nu.
