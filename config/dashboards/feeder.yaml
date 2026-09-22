@@ -80,15 +80,21 @@ views:
       # omräkningen görs här, så tracked.json förblir samma som readsb.
       # Höjden avrundas till tiotal meter: den sänds i steg om 25 fot (7,6 m),
       # så en entalssiffra vore falsk precision.
+      #
+      # Första kolumnen visar det första som finns av anropssignal (SAS94B),
+      # registrering (SP-RKS) och ICAO-adress. Anropssignalen sänds bara var
+      # femte sekund och aldrig av plan som bara svarar radar; registrering och
+      # typ slås upp på Pi:n i readsbs flygplansdatabas. Adressen är sista
+      # utvägen och står i kursiv, så att 48c131 inte ser ut som ett flightnummer.
       - type: markdown
         title: Flygplan just nu
         content: |
           {% set ac = state_attr('sensor.flygplanslista', 'list') %}
           {% if ac %}
-          | Flight | Höjd | Fart | Avstånd |
-          |---|--:|--:|--:|
+          | Flight | Typ | Höjd | Fart | Avstånd |
+          |---|---|--:|--:|--:|
           {% for a in ac -%}
-          | {{ a.flight or a.hex }} | {{ 'mark' if a.on_ground else (((a.altitude_ft * 0.3048) | round(-1) | int ~ ' m') if a.altitude_ft is not none else '–') }} | {{ ((a.speed_kt * 1.852) | round | int ~ ' km/h') if a.speed_kt is not none else '–' }} | {{ ((a.distance_nm * 1.852) | round(1) ~ ' km') if a.distance_nm is not none else '–' }} {{ a.direction or '' }} |
+          | {{ a.flight or a.registration or ('*' ~ a.hex ~ '*') }} | {{ a.type or '–' }} | {{ 'mark' if a.on_ground else (((a.altitude_ft * 0.3048) | round(-1) | int ~ ' m') if a.altitude_ft is not none else '–') }} | {{ ((a.speed_kt * 1.852) | round | int ~ ' km/h') if a.speed_kt is not none else '–' }} | {{ ((a.distance_nm * 1.852) | round(1) ~ ' km') if a.distance_nm is not none else '–' }} {{ a.direction or '' }} |
           {% endfor %}
           {% else %}
           Inget flygplan hörs just nu.
