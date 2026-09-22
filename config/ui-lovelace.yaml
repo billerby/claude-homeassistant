@@ -371,7 +371,7 @@ views:
       entities:
       - sensor.mill_convector_control_signal
       - sensor.mill_convector_current_power
-      - device_tracker.mill_convection_g3
+      - device_tracker.mill_convection_g3_2
     - type: thermostat
       entity: climate.mill_convector
   - type: custom:apexcharts-card
@@ -641,7 +641,7 @@ views:
   - type: entities
     entities:
     - entity: switch.shellyplugg_till_lampan
-      name: Lampa pianorum
+      name: Kaffemaskin
     - entity: switch.shellyplug_s_80646f83db50
     state_color: true
   - type: light

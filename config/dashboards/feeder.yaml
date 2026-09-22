@@ -12,6 +12,11 @@
 #   - Nuläget visas som siffror, inte som diagram. En kurva över "tappade
 #     samples" som alltid är noll säger ingenting.
 #   - Anslutningsläget visas som tidslinje, inte som kurva.
+#   - VILKA som spåras är en tabell, inte ett diagram. Namn, typ och destination
+#     är nominella värden - de har ingen ordning att rita på en axel. Tabellen
+#     sorteras på avstånd, vilket är det enda som går att jämföra.
+#     Listorna kommer från sensor.flygplanslista och sensor.fartygslista, som
+#     är skilda från räknarna för att kunna undantas i recorder.
 #
 # Färger:
 #   Kategoriska serier använder slot 1 (#2a78d6) och slot 2 (#eb6834).
@@ -29,6 +34,12 @@ views:
     cards:
 
       # --- Nuläget: siffror, inte diagram --------------------------------------
+      # "Fartyg" pekar på sensor.fartyg_sparade, inte på sensor.ais_sparade_objekt
+      # som tidigare. Det senare heter nu "AIS-objekt" och står kvar bredvid,
+      # för de mäter olika saker och skillnaden dem emellan är stor: 26 mot 144
+      # en vanlig eftermiddag. Fartyg är fartyg som hörts de senaste tio
+      # minuterna; AIS-objekt är allt AIS-catcher håller i minnet i 30 minuter,
+      # sjömärken och basstationer inräknade.
       - type: glance
         title: Just nu
         columns: 3
@@ -40,18 +51,72 @@ views:
             name: Msg/min
           - entity: sensor.ads_b_brusgolv
             name: Brusgolv
-          - entity: sensor.ais_sparade_objekt
+          - entity: sensor.fartyg_sparade
             name: Fartyg
+          - entity: sensor.fartyg_under_gang
+            name: Under gång
+          - entity: sensor.ais_sparade_objekt
+            name: AIS-objekt
           - entity: binary_sensor.fr24_feeder_ansluten
             name: FR24
           - entity: sensor.ads_b_tappade_samples
             name: Tappade
-          - entity: sensor.flygplan_i_dag
-            name: Plan i dag
           - entity: sensor.ads_b_max_avstand
             name: Max avstånd
+          - entity: sensor.flygplan_i_dag
+            name: Plan i dag
           - entity: sensor.flygplan_denna_manad
             name: Denna månad
+          - entity: sensor.ais_meddelanden_per_sekund
+            name: AIS msg/s
+
+      # --- Vilka flygplan hörs just nu -----------------------------------------
+      # Listan är kapad till 25 av tjänsten på Pi:n; "Flygplan spårade" i
+      # glansen ovan gäller alltid allt som hörs. Att listan är tom är
+      # normaltillståndet mellan passager - med 38 nm räckvidd och ett
+      # sextiotal unika flygplan per dygn går det minuter mellan planen.
+      - type: markdown
+        title: Flygplan just nu
+        content: |
+          {% set ac = state_attr('sensor.flygplanslista', 'list') %}
+          {% if ac %}
+          | Flight | Höjd (ft) | Fart | Avstånd |
+          |---|--:|--:|--:|
+          {% for a in ac -%}
+          | {{ a.flight or a.hex }} | {{ 'mark' if a.on_ground else (a.altitude_ft if a.altitude_ft is not none else '–') }} | {{ a.speed_kt if a.speed_kt is not none else '–' }} kt | {{ a.distance_nm if a.distance_nm is not none else '–' }} nm {{ a.direction or '' }} |
+          {% endfor %}
+          {% else %}
+          Inget flygplan hörs just nu.
+          {% endif %}
+
+      # --- Vilka fartyg hörs just nu --------------------------------------------
+      # Typen är översatt på Pi:n; AIS kodar den som ett tal 0-99 i
+      # tiotalsgrupper. Sjömärken och basstationer är redan bortsorterade -
+      # de sänder AIS men ligger still för alltid, och blandade i listan får
+      # den att se ut att innehålla ett dussin fartyg som aldrig rör sig.
+      #
+      # `| default('–')` fungerar inte här: filtret ersätter bara det som är
+      # odefinierat, och ett fält som saknas i ett AIS-meddelande är null -
+      # alltså definierat, och renderas som strängen "None". Text tas med
+      # `or`, tal med `is not none` - 0 kt är ett riktigt värde för ett
+      # förtöjt fartyg och ska inte bytas mot ett streck.
+      - type: markdown
+        title: Fartyg just nu
+        content: |
+          {% set sh = state_attr('sensor.fartygslista', 'list') %}
+          {% if sh %}
+          {{ states('sensor.fartyg_sparade') }} fartyg inom
+          {{ state_attr('sensor.fartygslista', 'max_distance_nm') }} nm, varav
+          {{ states('sensor.fartyg_under_gang') }} under gång.
+
+          | Fartyg | Typ | Fart | Avstånd | Mot |
+          |---|---|--:|--:|---|
+          {% for v in sh -%}
+          | {{ v.name or v.mmsi }} | {{ v.type or '–' }} | {{ v.speed_kt if v.speed_kt is not none else '–' }} kt | {{ v.distance_nm if v.distance_nm is not none else '–' }} nm {{ v.direction or '' }} | {{ v.destination or '–' }} |
+          {% endfor %}
+          {% else %}
+          Inget fartyg hörs just nu.
+          {% endif %}
 
       # --- Brusgolvet: det diagnostiska diagrammet ------------------------------
       # Enda måttet som avslöjar kompression orsakad av starka signaler utanför
@@ -203,30 +268,41 @@ views:
               func: max
               duration: 1d
 
-      # --- AIS ------------------------------------------------------------------
+      # --- Fartyg: två serier, samma storhet ------------------------------------
+      # Skillnaden mellan spårade och de under gång visar hur mycket av
+      # hamntrafiken som faktiskt rör sig. Det mesta ligger förtöjt, så den
+      # undre kurvan är den som säger något om dygnsrytmen.
+      # sensor.ais_sparade_objekt ritas inte: det är AIS-catchers eget tal och
+      # räknar även sjömärken och basstationer, i 30 minuter efter sista
+      # meddelandet. Det hör hemma som siffra, inte som kurva bredvid dessa.
       - type: custom:apexcharts-card
         graph_span: 24h
         span:
           end: minute
         header:
           show: true
-          title: Fartyg och sjömärken
+          title: Fartyg
           show_states: true
-          colorize_states: false
+          colorize_states: true
         apex_config:
           legend:
-            show: false
+            show: true
+            position: bottom
           chart:
             height: 220
+        all_series_config:
+          type: line
+          stroke_width: 2
+          group_by:
+            func: max
+            duration: 5m
         series:
-          - entity: sensor.ais_sparade_objekt
-            name: Spårade objekt
+          - entity: sensor.fartyg_sparade
+            name: Spårade
             color: '#2a78d6'
-            type: line
-            stroke_width: 2
-            group_by:
-              func: max
-              duration: 5m
+          - entity: sensor.fartyg_under_gang
+            name: Under gång
+            color: '#eb6834'
 
       # --- Länkens tillgänglighet -----------------------------------------------
       # Ett på/av-tillstånd över tid är en tidslinje, inte en kurva.

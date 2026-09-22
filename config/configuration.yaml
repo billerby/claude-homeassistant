@@ -631,6 +631,13 @@ influxdb:
       - sensor.*_smartphone_*
       - sensor.adguard_home_*
       - binary_sensor.*_internet_access
+      # Feeder: de två listbärarna. Attributet `list` är hela flygplans-
+      # respektive fartygslistan — några kilobyte som skrivs om var trettionde
+      # sekund, och recorder kan undanta entiteter men inte enskilda attribut.
+      # Räknarna heter annat (Flygplan spårade, Fartyg spårade, Fartyg under
+      # gång) och ligger kvar i historiken — det är de som ritar diagrammen.
+      - sensor.flygplanslista
+      - sensor.fartygslista
       
 logger:
   default: warn
