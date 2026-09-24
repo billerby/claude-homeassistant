@@ -527,31 +527,36 @@ views:
             stroke_width: 2
 
       # --- EX60 i Sverige ---------------------------------------------------------
-      # Totalen från car.info, läst en gång per dygn. Den ligger veckor efter
-      # fabriken: demobilar registreras när de når handlaren.
+      # Nyregistreringar per dag från car.info, 60 dagar bakåt. Serien kommer
+      # som attribut från Pi:n, som hämtar om den varje dygn eftersom car.info
+      # fyller på dagar i efterhand, så diagrammet har historik från start.
+      # Dagssummor är diskreta och ritas som staplar. Serien ligger oftast en
+      # dag efter: car.info uppdaterar till och med i går.
       - type: custom:apexcharts-card
         graph_span: 60d
         span:
           end: day
         header:
           show: true
-          title: Registrerade EX60 i Sverige
-          show_states: true
-          colorize_states: false
+          title: EX60 nyregistrerade i Sverige per dag
+          show_states: false
         apex_config:
           legend:
             show: false
           chart:
-            height: 200
+            height: 220
+          plotOptions:
+            bar:
+              borderRadius: 2
+              columnWidth: 80%
         series:
           - entity: sensor.ex60_registrerade_i_sverige
-            name: Registrerade
+            name: Nyregistrerade
             color: '#2a78d6'
-            type: line
-            stroke_width: 2
-            group_by:
-              func: last
-              duration: 1d
+            type: column
+            data_generator: |
+              return (entity.attributes.nyreg_per_dag || []).map(d =>
+                [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
 
       # --- Agenter ---------------------------------------------------------------
       # Vem som lastar säger vart bilarna går: Wallenius Wilhelmsen kör

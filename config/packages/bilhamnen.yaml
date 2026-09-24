@@ -151,6 +151,8 @@ rest:
           - registrerade_se_7d
           - registrerade_se_30d
           - registrerade_se_till_salu
+          - nyreg_senaste_dag
+          - nyreg_per_dag
 
       - name: "EX60 nyregistreringar 7 dygn"
         unique_id: ex60_nyregistreringar_7d
