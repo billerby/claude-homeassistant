@@ -394,6 +394,10 @@ views:
             name: Nya 7 d
           - entity: sensor.bilhamnen_wallenius_30_dygn
             name: Wallenius 30 d
+          - entity: sensor.ex60_i_danmark
+            name: EX60 i DK
+          - entity: sensor.ex60_danmark_hogsta_lopnummer
+            name: Högsta # DK
 
       # --- Vilka båtar ----------------------------------------------------------
       # Tider visas som datum och klockslag i lokal tid. Liggtiden för en båt
@@ -557,6 +561,28 @@ views:
             data_generator: |
               return (entity.attributes.nyreg_per_dag || []).map(d =>
                 [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+
+      # --- EX60 i Danmark -----------------------------------------------------------
+      # Löpnumren ur Danmarks motorregister, högst först. Datumet är
+      # registrering eller, för Oprettet, när bilen lades in i registret;
+      # bilen var byggd före det. Registreringsnummer sparas inte.
+      - type: markdown
+        title: EX60 i Danmark
+        content: |
+          {% set e = 'sensor.ex60_i_danmark' %}
+          {% set cars = state_attr(e, 'dk_bilar') %}
+          {% if cars %}
+          {{ states(e) }} bilar i registerfilen från {{ state_attr(e, 'dk_fil')[6:8] | int }}/{{ state_attr(e, 'dk_fil')[4:6] | int }},
+          varav {{ state_attr(e, 'dk_registrerade') }} registrerade.
+
+          | Löpnummer | Status | Datum |
+          |--:|---|---|
+          {% for c in (cars | sort(attribute='lopnummer', reverse=true))[:10] -%}
+          | #{{ '%06d' | format(c.lopnummer) }} | {{ 'registrerad' if c.status == 'Registreret' else 'inlagd' }} | {{ as_timestamp(c.datum) | timestamp_custom('%-d/%-m') if c.datum else '–' }} |
+          {% endfor %}
+          {% else %}
+          Ingen dansk registerfil läst än. Pi:n läser den natten efter att den lagts ut.
+          {% endif %}
 
       # --- Agenter ---------------------------------------------------------------
       # Vem som lastar säger vart bilarna går: Wallenius Wilhelmsen kör

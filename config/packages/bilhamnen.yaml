@@ -162,6 +162,34 @@ rest:
         state_class: measurement
         icon: mdi:car-arrow-right
 
+      # EX60 i Danmarks motorregister, från veckofilen som Pi:n läser natten
+      # efter att den lagts ut (söndagar). Registreret har registreringsdatum,
+      # Oprettet är inlagd men inte registrerad, med datumet den lades in.
+      - name: "EX60 i Danmark"
+        unique_id: ex60_danmark_antal
+        availability: "{{ value_json.dk_fil is not none }}"
+        value_template: "{{ value_json.dk_antal | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:car-electric-outline
+        json_attributes:
+          - dk_fil
+          - dk_registrerade
+          - dk_bilar
+
+      # Högsta löpnumret i Danmark. Bilen var byggd före datumet, så det är
+      # en undre gräns för hur långt produktionen kommit.
+      - name: "EX60 Danmark högsta löpnummer"
+        unique_id: ex60_danmark_hogsta_lopnummer
+        availability: "{{ value_json.dk_hogsta is not none }}"
+        value_template: "{{ value_json.dk_hogsta.lopnummer | int(0) }}"
+        state_class: measurement
+        icon: mdi:numeric
+        json_attributes_path: "$.dk_hogsta"
+        json_attributes:
+          - status
+          - datum
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper
