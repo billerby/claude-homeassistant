@@ -352,3 +352,222 @@ views:
             group_by:
               func: max
               duration: 5m
+
+  # ===========================================================================
+  # Bilhamnen — bilbåtarna i Göteborg och EX60
+  # ===========================================================================
+  # Sensorerna definieras i config/packages/bilhamnen.yaml och läses från
+  # bilhamnen-tjänsten på samma Pi (se ~/project/bilhamnen). Anlöpen kommer
+  # från Göteborgs Hamns API, djupgåendet från AIS via AISHub och
+  # registreringarna från car.info.
+  #
+  # Samma principer som feeder-vyn: nuläget som siffror, vilka fartyg som en
+  # tabell, en storhet per diagram. Anlöp per vecka är diskreta antal och
+  # ritas som staplar. Liggtid och djupgående ändras bara när en båt går, så
+  # de ritas som trappsteg - det finns inget värde mellan två avgångar att
+  # interpolera.
+  - title: Bilhamnen
+    path: bilhamnen
+    icon: mdi:ferry
+    cards:
+
+      # --- Nuläget ---------------------------------------------------------------
+      - type: glance
+        title: Bilhamnen
+        columns: 3
+        entities:
+          - entity: sensor.bilhamnen_anlop_7_dygn
+            name: Anlöp 7 d
+          - entity: sensor.bilhamnen_anlop_30_dygn
+            name: Anlöp 30 d
+          - entity: sensor.bilhamnen_fartyg_i_hamn
+            name: I hamn
+          - entity: sensor.bilhamnen_liggtid_median
+            name: Liggtid median
+          - entity: sensor.bilhamnen_liggtid_senaste
+            name: Liggtid senaste
+          - entity: sensor.bilhamnen_djupgaende_senaste
+            name: Djupgående +/-
+          - entity: sensor.ex60_registrerade_i_sverige
+            name: EX60 i Sverige
+          - entity: sensor.ex60_nyregistreringar_7_dygn
+            name: Nya 7 d
+          - entity: sensor.bilhamnen_wallenius_30_dygn
+            name: Wallenius 30 d
+
+      # --- Vilka båtar ----------------------------------------------------------
+      # Tider visas som datum och klockslag i lokal tid. Liggtiden för en båt
+      # som ligger inne räknas fram till nu; den bekräftade liggtiden kommer
+      # först när avgången är bekräftad.
+      - type: markdown
+        title: Båtarna
+        content: |
+          {% set fmt = '%-d/%-m %H:%M' %}
+          {% set ih = state_attr('sensor.bilhamnen_fartyg_i_hamn', 'i_hamn') %}
+          {% set nb = 'sensor.bilhamnen_nasta_bilbat' %}
+          {% set sa = 'sensor.bilhamnen_senaste_avgang' %}
+          {% set dj = 'sensor.bilhamnen_djupgaende_senaste' %}
+          **Vid kaj 601**
+          {% if ih %}
+
+          | Fartyg | Agent | Ankom | Liggtid | Djupgående |
+          |---|---|---|--:|--:|
+          {% for v in ih -%}
+          | {{ v.fartyg }} | {{ v.agent or '–' }} | {{ as_timestamp(v.ankom) | timestamp_custom(fmt) }} | {{ ((as_timestamp(now()) - as_timestamp(v.ankom)) / 3600) | round(1) }} h | {{ (v.djupgaende_m ~ ' m') if v.djupgaende_m is not none else '–' }} |
+          {% endfor %}
+          {% else %}
+          Ingen bilbåt vid kaj.
+          {% endif %}
+
+          **Nästa**
+          {% if states(nb) not in ['unknown', 'unavailable'] %}
+          {{ state_attr(nb, 'fartyg') }} ({{ state_attr(nb, 'agent') or 'okänd agent' }})
+          från {{ state_attr(nb, 'fran') or 'okänd hamn' }},
+          {{ as_timestamp(states(nb)) | timestamp_custom(fmt) }}{{ '' if state_attr(nb, 'bekraftad') else ', planerad' }}.
+          {% else %}
+          Ingen väntad bilbåt i hamnens lista.
+          {% endif %}
+
+          **Senast avgången**
+          {% if states(sa) not in ['unknown', 'unavailable'] %}
+          {{ state_attr(sa, 'fartyg') }} till {{ state_attr(sa, 'till') or 'okänd hamn' }},
+          {{ as_timestamp(states(sa)) | timestamp_custom(fmt) }}.
+          {% if states(dj) not in ['unknown', 'unavailable'] and state_attr(dj, 'fartyg') == state_attr(sa, 'fartyg') %}
+          Djupgående {{ state_attr(dj, 'in_m') }} m in, {{ state_attr(dj, 'ut_m') }} m ut.
+          {% endif %}
+          {% endif %}
+
+      # --- Anlöp per vecka --------------------------------------------------------
+      # Veckoserien kommer som attribut från Pi:n ("2026-v38"), inte som
+      # sensorhistorik, så diagrammet visar åtta veckor bakåt redan från
+      # första dagen. Veckonumret räknas om till veckans måndag enligt ISO 8601.
+      - type: custom:apexcharts-card
+        graph_span: 8w
+        span:
+          end: isoWeek
+        header:
+          show: true
+          title: Anlöp per vecka
+          show_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 220
+          plotOptions:
+            bar:
+              borderRadius: 4
+              columnWidth: 60%
+        series:
+          - entity: sensor.bilhamnen_anlop_7_dygn
+            name: Anlöp
+            color: '#2a78d6'
+            type: column
+            data_generator: |
+              const monday = (y, w) => {
+                const d = new Date(Date.UTC(y, 0, 4));
+                d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() || 7) - 1) + (w - 1) * 7);
+                return d.getTime();
+              };
+              return (entity.attributes.per_vecka || []).map(v => {
+                const [y, w] = v.vecka.split('-v').map(Number);
+                return [monday(y, w), v.anlop];
+              });
+
+      # --- Liggtid ---------------------------------------------------------------
+      - type: custom:apexcharts-card
+        graph_span: 30d
+        span:
+          end: day
+        header:
+          show: true
+          title: Liggtid vid kaj, senaste båt
+          show_states: true
+          colorize_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+        series:
+          - entity: sensor.bilhamnen_liggtid_senaste
+            name: Liggtid
+            color: '#2a78d6'
+            type: line
+            curve: stepline
+            stroke_width: 2
+
+      # --- Djupgående ------------------------------------------------------------
+      # Hur mycket djupare båten gick ut än in. Positivt betyder lastad.
+      - type: custom:apexcharts-card
+        graph_span: 30d
+        span:
+          end: day
+        header:
+          show: true
+          title: Djupgående ut minus in
+          show_states: true
+          colorize_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+          annotations:
+            yaxis:
+              - y: 0
+                borderColor: '#8a8a8a'
+                strokeDashArray: 4
+        series:
+          - entity: sensor.bilhamnen_djupgaende_senaste
+            name: Djupgående
+            color: '#2a78d6'
+            type: line
+            curve: stepline
+            stroke_width: 2
+
+      # --- EX60 i Sverige ---------------------------------------------------------
+      # Totalen från car.info, läst en gång per dygn. Den ligger veckor efter
+      # fabriken: demobilar registreras när de når handlaren.
+      - type: custom:apexcharts-card
+        graph_span: 60d
+        span:
+          end: day
+        header:
+          show: true
+          title: Registrerade EX60 i Sverige
+          show_states: true
+          colorize_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+        series:
+          - entity: sensor.ex60_registrerade_i_sverige
+            name: Registrerade
+            color: '#2a78d6'
+            type: line
+            stroke_width: 2
+            group_by:
+              func: last
+              duration: 1d
+
+      # --- Agenter ---------------------------------------------------------------
+      # Vem som lastar säger vart bilarna går: Wallenius Wilhelmsen kör
+      # långlinjerna, CEVA och Scandinavia Shipping mest Europa.
+      - type: markdown
+        title: Agenter senaste 30 dygn
+        content: |
+          {% set ag = state_attr('sensor.bilhamnen_anlop_7_dygn', 'per_agent_30d') %}
+          {% if ag %}
+          | Agent | Anlöp |
+          |---|--:|
+          {% for name, n in ag.items() -%}
+          | {{ name }} | {{ n }} |
+          {% endfor %}
+          {% else %}
+          Inga anlöp senaste 30 dygn.
+          {% endif %}
+
+          <sub>Data från {{ as_timestamp(state_attr('sensor.bilhamnen_anlop_7_dygn', 'genererad')) | timestamp_custom('%-d/%-m %H:%M') }}. EX60-löpnummer: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP)</sub>
