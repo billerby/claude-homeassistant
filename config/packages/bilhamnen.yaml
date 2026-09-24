@@ -110,6 +110,33 @@ rest:
           - agent
           - till
 
+      # Hur mycket djupare båtarna går ut än in, från AIS via AISHub. Ett
+      # ungefärligt mått på lastningen; se README i ~/project/bilhamnen.
+      # Serien börjar när AISHub-kontot läggs in på Pi:n.
+      - name: "Bilhamnen djupgående skillnad median"
+        unique_id: bilhamnen_djupgaende_skillnad_median
+        availability: "{{ value_json.djupgaende_skillnad_median_m_30d is not none }}"
+        value_template: "{{ value_json.djupgaende_skillnad_median_m_30d | float(0) }}"
+        unit_of_measurement: "m"
+        state_class: measurement
+        icon: mdi:waves-arrow-up
+        json_attributes:
+          - djupgaende_anlop_30d
+
+      - name: "Bilhamnen djupgående senaste"
+        unique_id: bilhamnen_djupgaende_senaste
+        availability: "{{ value_json.djupgaende_senaste is not none }}"
+        value_template: "{{ value_json.djupgaende_senaste.skillnad_m | float(0) }}"
+        unit_of_measurement: "m"
+        state_class: measurement
+        icon: mdi:waves-arrow-up
+        json_attributes_path: "$.djupgaende_senaste"
+        json_attributes:
+          - fartyg
+          - avgick
+          - in_m
+          - ut_m
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper
