@@ -1,0 +1,176 @@
+# =============================================================================
+# Bilhamnen — bilbåtar till och från Göteborg
+# =============================================================================
+# Anlöpen till Göteborgs bilterminal, som en indikator på exporttakten från
+# Torslanda. Volvo lastar sina exportbilar i Bilhamnen (kaj 601); trailers och
+# cassetter går på Älvsborgshamnen och räknas därför inte.
+#
+# Källa:
+#   http://192.168.1.111/bilhamnen/bilhamnen.json    anlöp, liggtid, ETA
+#
+# Pi:n hämtar hamnens eget API var femtonde minut och håller historiken i
+# SQLite. Se ~/project/bilhamnen. Ingen AIS-mottagning inblandad — antennen
+# här hemma ser inte längre än Älvsborgsbron, och hamnens API har dessutom
+# kajplats, vilket AIS inte har.
+#
+# VAD SIFFRORNA BETYDER:
+# Anlöp per vecka är en grov proxy för hur mycket som lämnar Göteborg, inte
+# för EX60 specifikt — samma kaj lastar XC60, EX90 och Polestar. Liggtiden är
+# den intressantare serien: en båt som ligger längre lastar rimligen mer.
+# Normalläget hösten 2026 är 2–5 anlöp i veckan och en median kring 17 timmar.
+#
+# Bekräftade anlöp räknas, planerade gör det inte. `isActual` i API:et blir
+# sant först när fartyget faktiskt ankommit.
+# =============================================================================
+
+rest:
+  - resource: http://192.168.1.111/bilhamnen/bilhamnen.json
+    scan_interval: 900
+    timeout: 15
+    sensor:
+      - name: "Bilhamnen anlöp 7 dygn"
+        unique_id: bilhamnen_anlop_7d
+        value_template: "{{ value_json.anlop_7d | int(0) }}"
+        unit_of_measurement: "anlöp"
+        state_class: measurement
+        icon: mdi:ferry
+        json_attributes:
+          - per_vecka
+          - per_agent_30d
+          - genererad
+
+      - name: "Bilhamnen anlöp 30 dygn"
+        unique_id: bilhamnen_anlop_30d
+        value_template: "{{ value_json.anlop_30d | int(0) }}"
+        unit_of_measurement: "anlöp"
+        state_class: measurement
+        icon: mdi:ferry
+
+      - name: "Bilhamnen Wallenius 30 dygn"
+        unique_id: bilhamnen_wallenius_30d
+        value_template: "{{ value_json.wallenius_30d | int(0) }}"
+        unit_of_measurement: "anlöp"
+        state_class: measurement
+        icon: mdi:ship-wheel
+
+      # Liggtid vid kaj, median för de anlöp där både ankomst och avgång är
+      # bekräftade. Planerade avgångstider säger inget om verklig lastning.
+      # Utan bekräftade liggtider är värdet null; då är sensorn otillgänglig
+      # hellre än 0 h, som annars hamnar i långtidsstatistiken.
+      - name: "Bilhamnen liggtid median"
+        unique_id: bilhamnen_liggtid_median
+        availability: "{{ value_json.liggtid_median_h is not none }}"
+        value_template: "{{ value_json.liggtid_median_h | float(0) }}"
+        unit_of_measurement: "h"
+        state_class: measurement
+        icon: mdi:timer-outline
+
+      # Liggtiden för den senast avgångna båten — den mest direkta serien.
+      - name: "Bilhamnen liggtid senaste"
+        unique_id: bilhamnen_liggtid_senaste
+        availability: "{{ value_json.liggtid_senaste_h is not none }}"
+        value_template: "{{ value_json.liggtid_senaste_h | float(0) }}"
+        unit_of_measurement: "h"
+        state_class: measurement
+        icon: mdi:timer-outline
+
+      - name: "Bilhamnen fartyg i hamn"
+        unique_id: bilhamnen_fartyg_i_hamn
+        value_template: "{{ value_json.fartyg_i_hamn | int(0) }}"
+        unit_of_measurement: "fartyg"
+        state_class: measurement
+        icon: mdi:anchor
+        json_attributes:
+          - i_hamn
+
+      # Nästa väntade bilbåt. device_class timestamp ger "om 3 timmar" i
+      # gränssnittet i stället för en rå tidsstämpel.
+      - name: "Bilhamnen nästa bilbåt"
+        unique_id: bilhamnen_nasta_eta
+        device_class: timestamp
+        value_template: >-
+          {{ value_json.nasta.eta if value_json.nasta else none }}
+        json_attributes_path: "$.nasta"
+        json_attributes:
+          - fartyg
+          - agent
+          - fran
+          - imo
+          - mmsi
+          - bekraftad
+
+      - name: "Bilhamnen senaste avgång"
+        unique_id: bilhamnen_senaste_avgang
+        device_class: timestamp
+        value_template: >-
+          {{ value_json.senaste_avgang.avgick if value_json.senaste_avgang else none }}
+        json_attributes_path: "$.senaste_avgang"
+        json_attributes:
+          - fartyg
+          - agent
+          - till
+
+      # Hur mycket djupare båtarna går ut än in, från AIS via AISHub. Ett
+      # ungefärligt mått på lastningen; se README i ~/project/bilhamnen.
+      # Serien börjar när AISHub-kontot läggs in på Pi:n.
+      - name: "Bilhamnen djupgående skillnad median"
+        unique_id: bilhamnen_djupgaende_skillnad_median
+        availability: "{{ value_json.djupgaende_skillnad_median_m_30d is not none }}"
+        value_template: "{{ value_json.djupgaende_skillnad_median_m_30d | float(0) }}"
+        unit_of_measurement: "m"
+        state_class: measurement
+        icon: mdi:waves-arrow-up
+        json_attributes:
+          - djupgaende_anlop_30d
+
+      - name: "Bilhamnen djupgående senaste"
+        unique_id: bilhamnen_djupgaende_senaste
+        availability: "{{ value_json.djupgaende_senaste is not none }}"
+        value_template: "{{ value_json.djupgaende_senaste.skillnad_m | float(0) }}"
+        unit_of_measurement: "m"
+        state_class: measurement
+        icon: mdi:waves-arrow-up
+        json_attributes_path: "$.djupgaende_senaste"
+        json_attributes:
+          - fartyg
+          - avgick
+          - in_m
+          - ut_m
+
+      # Registrerade EX60 i Sverige enligt car.info, läst en gång per dygn.
+      # Det är svenska leveranser, inte produktion eller export.
+      - name: "EX60 registrerade i Sverige"
+        unique_id: ex60_registrerade_se
+        availability: "{{ value_json.registrerade_se is not none }}"
+        value_template: "{{ value_json.registrerade_se | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: total
+        icon: mdi:car-electric
+        json_attributes:
+          - registrerade_se_dag
+          - registrerade_se_7d
+          - registrerade_se_30d
+          - registrerade_se_till_salu
+
+      - name: "EX60 nyregistreringar 7 dygn"
+        unique_id: ex60_nyregistreringar_7d
+        availability: "{{ value_json.registrerade_se_7d is not none }}"
+        value_template: "{{ value_json.registrerade_se_7d | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:car-arrow-right
+
+template:
+  - sensor:
+      # Namnet på nästa båt som egen sensor, så att kort och notiser slipper
+      # gräva i attribut.
+      - name: "Bilhamnen nästa fartyg"
+        unique_id: bilhamnen_nasta_fartyg
+        state: >-
+          {{ state_attr('sensor.bilhamnen_nasta_bilbat', 'fartyg') | default('okänt', true) }}
+        attributes:
+          fran: >-
+            {{ state_attr('sensor.bilhamnen_nasta_bilbat', 'fran') }}
+          agent: >-
+            {{ state_attr('sensor.bilhamnen_nasta_bilbat', 'agent') }}
+        icon: mdi:ship-wheel
