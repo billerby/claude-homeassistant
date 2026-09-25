@@ -542,249 +542,271 @@ views:
           <sub>Data från {{ as_timestamp(state_attr('sensor.bilhamnen_anlop_7_dygn', 'genererad')) | timestamp_custom('%-d/%-m %H:%M') }}.</sub>
 
   # ===========================================================================
-  # EX60 — produktion och registreringar
+  # EX60 — produktion och leveranser
   # ===========================================================================
-  # Skild från Bilhamnen: hamnen visar vad som skeppas ut, den här fliken
-  # vad som byggs (löpnummer ur VIN) och vad som registreras i Sverige,
-  # Danmark, Finland och Nederländerna. Allt kommer från bilhamnen-tjänsten
-  # på Pi:n.
+  # Tre avdelningar, en fråga var, i den ordning de ska läsas:
+  #   1. Produktion: hur fort bygger Torslanda? (löpnummer ur VIN)
+  #   2. Leveranser i Europa: hur går registreringarna, land mot land?
+  #   3. Detaljer: dagsserier, danska löpnummer och källor.
+  # Avdelningsvy (type: sections) i stället för masonry, så att ordningen
+  # och avdelningarna hålls ihop på både dator och mobil.
   #
-  # Löpnumren räknas som på löpnummersidan (länkad längst ner): högsta
-  # kända är det högsta löpnummer vi sett oavsett typ; takten är en linjär
-  # anpassning över byggdatum inom 60 dagar före det senaste. Registrerade
-  # och sedda bilar säger bara att bilen var byggd före datumet.
+  # Länderna har fasta färger ur en validerad kategorisk palett (mörka
+  # steg, kontrollerade mot HA:s mörka kortyta: sämsta intilliggande par
+  # ΔE 8,4 vid färgblindhet och 19,3 vid normalt seende). Ordningen följer
+  # reg_per_manad från Pi:n och byts aldrig, så ett land har alltid samma
+  # färg:
+  #   SE #3987e5  NO #d95926  DK #199e70  FI #c98500  NL #d55181  DE #008300
+  # Identitet bärs aldrig av färgen ensam: diagrammen har förklaring och
+  # tabellen under visar samma siffror.
   - title: EX60
     path: ex60
     icon: mdi:car-electric
-    cards:
+    type: sections
+    max_columns: 3
+    sections:
 
-      # --- Produktion ------------------------------------------------------------
-      # Samma fyra siffror som överst på löpnummersidan, med förklaringen
-      # under varje siffra. En tabell i stället för fyra kort, så att
-      # siffra och förklaring hålls ihop även på mobil.
-      - type: markdown
-        title: Produktion
-        content: |
-          {% set h = 'sensor.ex60_hogsta_kanda_lopnummer' %}
-          {% set t = 'sensor.ex60_takt_nu' %}
-          {% set u = 'sensor.ex60_uppskattat_lopnummer_i_dag' %}
-          {% set k = 'sensor.ex60_kravs_per_dag_for_malet' %}
-          {% set bad = ['unknown', 'unavailable'] %}
-          {% set h_ok = states(h) not in bad %}
-          {% set t_ok = states(t) not in bad %}
-          {% set u_ok = states(u) not in bad %}
-          {% set k_ok = states(k) not in bad %}
-          | Högsta kända | Takt nu | Uppskattat i dag | Krävs för {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år |
-          |:-:|:-:|:-:|:-:|
-          | **{{ ('#%06d' | format(states(h) | int)) if h_ok else '–' }}** | **{{ (states(t) | round(0) | int) if t_ok else '–' }} / dag** | **{{ ('#%06d' | format(states(u) | int)) if u_ok else '–' }}** | **{{ states(k) if k_ok else '–' }} / dag** |
-          | {{ state_attr(h, 'typ') or '' }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (' · ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }} | {{ ('≈ ' ~ ((states(t) | float(0)) * 7) | round | int ~ ' i veckan · ' ~ state_attr(t, 'lopnr_takt_punkter') ~ ' punkter') if t_ok else '' }} | {{ ('framskrivet från ' ~ (as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m'))) if state_attr(u, 'lopnr_framskrivet_fran') else '' }} | {{ (state_attr(k, 'lopnr_kravs_ganger_takten') ~ ' × takten nu') if state_attr(k, 'lopnr_kravs_ganger_takten') else '' }} |
+      # --- 1. Produktion --------------------------------------------------------
+      # Fyra siffror i rutor (två och två på mobil), och slutsatsen i
+      # klartext under, med förbehållet om hur få punkter takten vilar på.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Produktion
+            heading_style: title
+            icon: mdi:factory
+          - type: tile
+            entity: sensor.ex60_hogsta_kanda_lopnummer
+            name: Högsta löpnummer
+            vertical: true
+          - type: tile
+            entity: sensor.ex60_takt_nu
+            name: Takt nu
+            vertical: true
+          - type: tile
+            entity: sensor.ex60_uppskattat_lopnummer_i_dag
+            name: Uppskattat i dag
+            vertical: true
+          - type: tile
+            entity: sensor.ex60_kravs_per_dag_for_malet
+            name: Krävs för målet
+            vertical: true
+          - type: markdown
+            content: |
+              {% set h = 'sensor.ex60_hogsta_kanda_lopnummer' %}
+              {% set t = 'sensor.ex60_takt_nu' %}
+              {% set u = 'sensor.ex60_uppskattat_lopnummer_i_dag' %}
+              {% set k = 'sensor.ex60_kravs_per_dag_for_malet' %}
+              {% set bad = ['unknown', 'unavailable'] %}
+              {% if states(t) not in bad and states(k) not in bad %}
+              Torslanda bygger ≈ **{{ states(t) | round(0) | int }} EX60 per dag**, räknat ur
+              {{ state_attr(t, 'lopnr_takt_punkter') }} bilar med känt byggdatum
+              {%- if state_attr(u, 'lopnr_framskrivet_fran') %} (senast {{ as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m') }}){% endif %}.
+              Målet {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år kräver
+              ≈ **{{ states(k) }} per dag**{% if state_attr(k, 'lopnr_kravs_ganger_takten') %}, {{ state_attr(k, 'lopnr_kravs_ganger_takten') | replace('.', ',') }} × dagens takt{% endif %}.
+              {% if states(h) not in bad %}
+              Högsta kända löpnummer är #{{ '%06d' | format(states(h) | int) }}
+              ({{ {'byggd': 'byggd', 'registrerad': 'registrerad', 'sedd': 'sedd'}.get(state_attr(h, 'typ'), state_attr(h, 'typ')) }}
+              {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (', ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }}).
+              {% endif %}
+              {% else %}
+              Takten går inte att räkna ut: det behövs minst två bilar med byggdatum.
+              {% endif %}
 
-      # --- Registreringar: nuläget -----------------------------------------------
-      - type: glance
-        title: Registreringar
-        columns: 2
-        entities:
-          - entity: sensor.ex60_registrerade_i_sverige
-            name: I Sverige
-          - entity: sensor.ex60_nyregistreringar_7_dygn
-            name: SE nya 7 d
-          - entity: sensor.ex60_i_danmark
-            name: I Danmark
-          - entity: sensor.ex60_danmark_hogsta_lopnummer
-            name: Högsta # DK
-          - entity: sensor.ex60_i_nederlanderna
-            name: I Nederländerna
-          - entity: sensor.ex60_nederlanderna_nya_7_dygn
-            name: NL nya 7 d
-          - entity: sensor.ex60_i_norge
-            name: I Norge
-          - entity: sensor.ex60_norge_denna_manad
-            name: NO denna mån
+      # --- 2. Leveranser i Europa ---------------------------------------------
+      # Ett diagram där länderna går att jämföra: registreringar per månad,
+      # samma skala, en stapel per land och månad. Dagsdata är summerade per
+      # månad på Pi:n; en månad utan data (Finland och Tyskland ligger en
+      # månad efter) saknar stapel i stället för att visa noll.
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Leveranser i Europa
+            heading_style: title
+            icon: mdi:earth
+          - type: custom:apexcharts-card
+            grid_options:
+              columns: full
+            graph_span: 6month
+            span:
+              end: month
+            header:
+              show: true
+              title: Nyregistreringar per månad
+              show_states: false
+            apex_config:
+              chart:
+                height: 280
+              legend:
+                show: true
+                position: bottom
+              plotOptions:
+                bar:
+                  borderRadius: 4
+                  borderRadiusApplication: end
+                  columnWidth: 75%
+              stroke:
+                show: true
+                width: 2
+                colors: ['transparent']
+              tooltip:
+                shared: true
+                intersect: false
+            all_series_config:
+              type: column
+            series:
+              - entity: sensor.ex60_registreringar_i_europa
+                name: Sverige
+                color: '#3987e5'
+                data_generator: |
+                  const m = entity.attributes.reg_manader || [];
+                  const v = (entity.attributes.reg_per_manad || {}).SE || [];
+                  return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+              - entity: sensor.ex60_registreringar_i_europa
+                name: Norge
+                color: '#d95926'
+                data_generator: |
+                  const m = entity.attributes.reg_manader || [];
+                  const v = (entity.attributes.reg_per_manad || {}).NO || [];
+                  return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+              - entity: sensor.ex60_registreringar_i_europa
+                name: Danmark
+                color: '#199e70'
+                data_generator: |
+                  const m = entity.attributes.reg_manader || [];
+                  const v = (entity.attributes.reg_per_manad || {}).DK || [];
+                  return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+              - entity: sensor.ex60_registreringar_i_europa
+                name: Finland
+                color: '#c98500'
+                data_generator: |
+                  const m = entity.attributes.reg_manader || [];
+                  const v = (entity.attributes.reg_per_manad || {}).FI || [];
+                  return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+              - entity: sensor.ex60_registreringar_i_europa
+                name: Nederländerna
+                color: '#d55181'
+                data_generator: |
+                  const m = entity.attributes.reg_manader || [];
+                  const v = (entity.attributes.reg_per_manad || {}).NL || [];
+                  return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+              - entity: sensor.ex60_registreringar_i_europa
+                name: Tyskland
+                color: '#008300'
+                data_generator: |
+                  const m = entity.attributes.reg_manader || [];
+                  const v = (entity.attributes.reg_per_manad || {}).DE || [];
+                  return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
 
-      # --- EX60 i Sverige ---------------------------------------------------------
-      # Nyregistreringar per dag från car.info, 60 dagar bakåt. Serien kommer
-      # som attribut från Pi:n, som hämtar om den varje dygn eftersom car.info
-      # fyller på dagar i efterhand, så diagrammet har historik från start.
-      # Dagssummor är diskreta och ritas som staplar. Serien ligger oftast en
-      # dag efter: car.info uppdaterar till och med i går, så fönstret slutar
-      # i går (offset -1d) och har inte en tom stapel för i dag.
-      - type: custom:apexcharts-card
-        graph_span: 60d
-        span:
-          end: day
-          offset: -1d
-        header:
-          show: true
-          title: EX60 nyregistrerade i Sverige per dag
-          show_states: false
-        apex_config:
-          legend:
-            show: false
-          chart:
-            height: 220
-          plotOptions:
-            bar:
-              borderRadius: 2
-              columnWidth: 80%
-        series:
-          - entity: sensor.ex60_registrerade_i_sverige
-            name: Nyregistrerade
-            color: '#2a78d6'
-            type: column
-            data_generator: |
-              return (entity.attributes.nyreg_per_dag || []).map(d =>
-                [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+          # Samma siffror som tabell, med samma kolumner för alla länder.
+          # "Senaste" är 30 dagar för länder med dagsdata, annars den senaste
+          # publicerade månaden - kolumnen säger vilket.
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {% set e = 'sensor.ex60_registreringar_i_europa' %}
+              {% set rows = state_attr(e, 'reg_tabell') or [] %}
+              {% set mon = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'] %}
+              {% macro dag(d) -%}
+              {%- if d | length == 10 -%}{{ d[8:10] | int }}/{{ d[5:7] | int }}{%- else -%}{{ mon[(d[5:7] | int) - 1] }}{%- endif -%}
+              {%- endmacro %}
+              {% if rows %}
+              | Land | Totalt | Senaste | Data t.o.m. |
+              |:--|--:|--:|:--|
+              {% for r in rows -%}
+              | {{ r.namn }} | {{ r.totalt }} | {{ r.senaste if r.senaste is not none else '–' }} <sub>{{ r.senaste_avser if 'dagar' in r.senaste_avser or 'månad' in r.senaste_avser else mon[(r.senaste_avser[5:7] | int) - 1] }}</sub> | {{ dag(r.till_och_med) }} |
+              {% endfor %}
 
-      # --- EX60 i Nederländerna ------------------------------------------------------
-      # Första registrering i Nederländerna per dag enligt RDW, 60 dagar
-      # till och med i går, och fönstret slutar därför i går. Samma form som
-      # de svenska staplarna, så att vågorna går att jämföra.
-      - type: custom:apexcharts-card
-        graph_span: 60d
-        span:
-          end: day
-          offset: -1d
-        header:
-          show: true
-          title: EX60 nyregistrerade i Nederländerna per dag
-          show_states: false
-        apex_config:
-          legend:
-            show: false
-          chart:
-            height: 220
-          plotOptions:
-            bar:
-              borderRadius: 2
-              columnWidth: 80%
-        series:
-          - entity: sensor.ex60_i_nederlanderna
-            name: Nyregistrerade
-            color: '#2a78d6'
-            type: column
-            data_generator: |
-              return (entity.attributes.nl_per_dag || []).map(d =>
-                [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+              {% for r in rows if r.anm -%}
+              <sub>{{ r.namn }}: {{ r.anm }}.</sub>
+              {% endfor %}
+              {% else %}
+              Inga registreringsdata än.
+              {% endif %}
 
-      # --- EX60 i Norge -------------------------------------------------------------
-      # Registreringar per dag enligt elbilstatistikk.no. Sidan har bara
-      # summor, så serien byggs av Pi:n ur dygnens totaler och börjar när
-      # den började läsa (25/9). Förra månadens antal finns som attribut på
-      # sensor.ex60_i_norge men visas inte här.
-      - type: custom:apexcharts-card
-        graph_span: 60d
-        span:
-          end: day
-        header:
-          show: true
-          title: EX60 nyregistrerade i Norge per dag
-          show_states: false
-        apex_config:
-          legend:
-            show: false
-          chart:
-            height: 200
-          plotOptions:
-            bar:
-              borderRadius: 2
-              columnWidth: 80%
-        series:
-          - entity: sensor.ex60_i_norge
-            name: Nyregistrerade
-            color: '#2a78d6'
-            type: column
-            data_generator: |
-              return (entity.attributes.no_per_dag || []).map(d =>
-                [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+      # --- 3. Detaljer --------------------------------------------------------
+      # Dagsserierna för länderna med dagsdata i ett diagram med samma skala
+      # och samma färger som ovan, de högsta danska löpnumren och källorna.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Detaljer
+            heading_style: title
+            icon: mdi:magnify
+          - type: custom:apexcharts-card
+            grid_options:
+              columns: full
+            graph_span: 60d
+            span:
+              end: day
+            header:
+              show: true
+              title: Nyregistreringar per dag
+              show_states: false
+            apex_config:
+              chart:
+                height: 220
+                stacked: true
+              legend:
+                show: true
+                position: bottom
+              plotOptions:
+                bar:
+                  borderRadius: 2
+                  columnWidth: 80%
+              tooltip:
+                shared: true
+                intersect: false
+            all_series_config:
+              type: column
+            series:
+              - entity: sensor.ex60_registrerade_i_sverige
+                name: Sverige
+                color: '#3987e5'
+                data_generator: |
+                  return (entity.attributes.nyreg_per_dag || []).map(d =>
+                    [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+              - entity: sensor.ex60_i_norge
+                name: Norge
+                color: '#d95926'
+                data_generator: |
+                  return (entity.attributes.no_per_dag || []).map(d =>
+                    [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+              - entity: sensor.ex60_i_nederlanderna
+                name: Nederländerna
+                color: '#d55181'
+                data_generator: |
+                  return (entity.attributes.nl_per_dag || []).map(d =>
+                    [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
 
-      # --- EX60 i Finland ------------------------------------------------------------
-      # Första registreringar per månad enligt Traficom. Månadssummor är
-      # diskreta och ritas som staplar; serien börjar vid första månaden
-      # med registreringar. Senaste månadens antal står i rubriken, bredvid
-      # staplarna, och inte bland registreringssiffrorna ovan: Traficom
-      # ligger upp till en månad efter, så det går inte att jämföra med
-      # de svenska sjudagarssiffrorna.
-      - type: custom:apexcharts-card
-        graph_span: 12month
-        span:
-          end: month
-        header:
-          show: true
-          title: EX60 första registreringar i Finland per månad
-          show_states: true
-        apex_config:
-          legend:
-            show: false
-          chart:
-            height: 200
-          plotOptions:
-            bar:
-              borderRadius: 3
-              columnWidth: 60%
-        series:
-          - entity: sensor.ex60_i_finland_senaste_manad
-            name: Senaste månaden
-            color: '#2a78d6'
-            type: column
-            data_generator: |
-              return (entity.attributes.fi_per_manad || []).map(m =>
-                [new Date(m.manad + '-15T12:00:00').getTime(), m.antal]);
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {% set e = 'sensor.ex60_i_danmark' %}
+              {% set cars = state_attr(e, 'dk_bilar') %}
+              **Högsta danska löpnummer**
+              {% if cars %}
+              | Löpnummer | Status | Datum |
+              |--:|:--|:--|
+              {% for c in (cars | sort(attribute='lopnummer', reverse=true))[:5] -%}
+              | #{{ '%06d' | format(c.lopnummer) }} | {{ 'registrerad' if c.status == 'Registreret' else 'inlagd' }} | {{ as_timestamp(c.datum) | timestamp_custom('%-d/%-m') if c.datum else '–' }} |
+              {% endfor %}
 
-      # --- EX60 i Tyskland -----------------------------------------------------------
-      # Nyregistreringar per månad enligt KBA FZ 10, samma form som Finland.
-      # KBA publicerar i början av månaden efter, så senaste månaden står i
-      # rubriken i stället för bland registreringssiffrorna.
-      - type: custom:apexcharts-card
-        graph_span: 12month
-        span:
-          end: month
-        header:
-          show: true
-          title: EX60 nyregistreringar i Tyskland per månad
-          show_states: true
-        apex_config:
-          legend:
-            show: false
-          chart:
-            height: 200
-          plotOptions:
-            bar:
-              borderRadius: 3
-              columnWidth: 60%
-        series:
-          - entity: sensor.ex60_i_tyskland_senaste_manad
-            name: Senaste månaden
-            color: '#2a78d6'
-            type: column
-            data_generator: |
-              return (entity.attributes.de_per_manad || []).map(m =>
-                [new Date(m.manad + '-15T12:00:00').getTime(), m.antal]);
+              <sub>Alla löpnummer: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP).</sub>
+              {% else %}
+              Ingen dansk registerfil läst än.
+              {% endif %}
 
-      # --- EX60 i Danmark -----------------------------------------------------------
-      # Löpnumren ur Danmarks motorregister, högst först. Datumet är
-      # registrering eller, för Oprettet, när bilen lades in i registret;
-      # bilen var byggd före det. Registreringsnummer sparas inte.
-      - type: markdown
-        title: EX60 i Danmark
-        content: |
-          {% set e = 'sensor.ex60_i_danmark' %}
-          {% set cars = state_attr(e, 'dk_bilar') %}
-          {% if cars %}
-          {{ states(e) }} bilar i registerfilen från {{ state_attr(e, 'dk_fil')[6:8] | int }}/{{ state_attr(e, 'dk_fil')[4:6] | int }},
-          varav {{ state_attr(e, 'dk_registrerade') }} registrerade.
-
-          | Löpnummer | Status | Datum |
-          |--:|---|---|
-          {% for c in (cars | sort(attribute='lopnummer', reverse=true))[:10] -%}
-          | #{{ '%06d' | format(c.lopnummer) }} | {{ 'registrerad' if c.status == 'Registreret' else 'inlagd' }} | {{ as_timestamp(c.datum) | timestamp_custom('%-d/%-m') if c.datum else '–' }} |
-          {% endfor %}
-          {% else %}
-          Ingen dansk registerfil läst än. Pi:n läser den natten efter att den lagts ut.
-          {% endif %}
-
-      # --- Källor -----------------------------------------------------------------
-      - type: markdown
-        content: |
-          <sub>Löpnummer och punkter: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP).
-          Sverige: car.info (Transportstyrelsen). Danmark: Skattestyrelsens motorregister, veckovis.
-          Finland: Traficom, månadsvis. Nederländerna: RDW öppen data, dagligen. Norge: elbilstatistikk.no. Tyskland: KBA FZ 10, månadsvis.</sub>
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              <sub>Källor: Sverige car.info (Transportstyrelsen), dagligen.
+              Norge elbilstatistikk.no, dagligen. Danmark Skattestyrelsens
+              motorregister, veckovis. Finland Traficom, månadsvis.
+              Nederländerna RDW öppen data, dagligen. Tyskland KBA FZ 10,
+              månadsvis. Löpnummer och produktionstakt från punkterna på
+              löpnummersidan.</sub>
