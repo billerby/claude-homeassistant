@@ -318,7 +318,7 @@ rest:
         unique_id: ex60_registreringar_europa
         availability: "{{ value_json.reg_tabell is defined and value_json.reg_tabell | length > 0 }}"
         value_template: "{{ value_json.reg_tabell | map(attribute='totalt') | sum }}"
-        unit_of_total: "bilar"
+        unit_of_measurement: "bilar"
         state_class: total
         icon: mdi:earth
         json_attributes:
