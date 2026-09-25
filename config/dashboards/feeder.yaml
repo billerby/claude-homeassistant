@@ -354,12 +354,12 @@ views:
               duration: 5m
 
   # ===========================================================================
-  # Bilhamnen — bilbåtarna i Göteborg och EX60
+  # Bilhamnen — bilbåtarna i Göteborg
   # ===========================================================================
   # Sensorerna definieras i config/packages/bilhamnen.yaml och läses från
   # bilhamnen-tjänsten på samma Pi (se ~/project/bilhamnen). Anlöpen kommer
-  # från Göteborgs Hamns API, djupgåendet från AIS via AISHub och
-  # registreringarna från car.info.
+  # från Göteborgs Hamns API och djupgåendet från AIS via AISHub. EX60 har
+  # en egen flik längre ner.
   #
   # Samma principer som feeder-vyn: nuläget som siffror, vilka fartyg som en
   # tabell, en storhet per diagram. Anlöp per vecka är diskreta antal och
@@ -568,23 +568,25 @@ views:
           {% set t = 'sensor.ex60_takt_nu' %}
           {% set u = 'sensor.ex60_uppskattat_lopnummer_i_dag' %}
           {% set k = 'sensor.ex60_kravs_per_dag_for_malet' %}
-          {% set ok = states(t) not in ['unknown', 'unavailable'] %}
+          {% set bad = ['unknown', 'unavailable'] %}
+          {% set h_ok = states(h) not in bad %}
+          {% set t_ok = states(t) not in bad %}
+          {% set u_ok = states(u) not in bad %}
+          {% set k_ok = states(k) not in bad %}
           | Högsta kända | Takt nu | Uppskattat i dag | Krävs för {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år |
           |:-:|:-:|:-:|:-:|
-          | **#{{ '%06d' | format(states(h) | int(0)) }}** | **{{ states(t) | round(0) | int if ok else '–' }} / dag** | **#{{ '%06d' | format(states(u) | int(0)) }}** | **{{ states(k) if ok else '–' }} / dag** |
-          | {{ state_attr(h, 'typ') }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (' · ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }} | {{ ('≈ ' ~ ((states(t) | float(0)) * 7) | round | int ~ ' i veckan · ' ~ state_attr(t, 'lopnr_takt_punkter') ~ ' punkter') if ok else '' }} | {{ ('framskrivet från ' ~ (as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m'))) if ok else '' }} | {{ (state_attr(k, 'lopnr_kravs_ganger_takten') ~ ' × takten nu') if state_attr(k, 'lopnr_kravs_ganger_takten') else '' }} |
+          | **{{ ('#%06d' | format(states(h) | int)) if h_ok else '–' }}** | **{{ (states(t) | round(0) | int) if t_ok else '–' }} / dag** | **{{ ('#%06d' | format(states(u) | int)) if u_ok else '–' }}** | **{{ states(k) if k_ok else '–' }} / dag** |
+          | {{ state_attr(h, 'typ') or '' }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (' · ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }} | {{ ('≈ ' ~ ((states(t) | float(0)) * 7) | round | int ~ ' i veckan · ' ~ state_attr(t, 'lopnr_takt_punkter') ~ ' punkter') if t_ok else '' }} | {{ ('framskrivet från ' ~ (as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m'))) if state_attr(u, 'lopnr_framskrivet_fran') else '' }} | {{ (state_attr(k, 'lopnr_kravs_ganger_takten') ~ ' × takten nu') if state_attr(k, 'lopnr_kravs_ganger_takten') else '' }} |
 
       # --- Registreringar: nuläget -----------------------------------------------
       - type: glance
         title: Registreringar
-        columns: 3
+        columns: 2
         entities:
           - entity: sensor.ex60_registrerade_i_sverige
             name: I Sverige
           - entity: sensor.ex60_nyregistreringar_7_dygn
             name: SE nya 7 d
-          - entity: sensor.ex60_i_finland_senaste_manad
-            name: FI senaste mån
           - entity: sensor.ex60_i_danmark
             name: I Danmark
           - entity: sensor.ex60_danmark_hogsta_lopnummer
@@ -625,7 +627,10 @@ views:
       # --- EX60 i Finland ------------------------------------------------------------
       # Första registreringar per månad enligt Traficom. Månadssummor är
       # diskreta och ritas som staplar; serien börjar vid första månaden
-      # med registreringar.
+      # med registreringar. Senaste månadens antal står i rubriken, bredvid
+      # staplarna, och inte bland registreringssiffrorna ovan: Traficom
+      # ligger upp till en månad efter, så det går inte att jämföra med
+      # de svenska sjudagarssiffrorna.
       - type: custom:apexcharts-card
         graph_span: 12month
         span:
@@ -633,7 +638,7 @@ views:
         header:
           show: true
           title: EX60 första registreringar i Finland per månad
-          show_states: false
+          show_states: true
         apex_config:
           legend:
             show: false
@@ -645,7 +650,7 @@ views:
               columnWidth: 60%
         series:
           - entity: sensor.ex60_i_finland_senaste_manad
-            name: Registrerade
+            name: Senaste månaden
             color: '#2a78d6'
             type: column
             data_generator: |

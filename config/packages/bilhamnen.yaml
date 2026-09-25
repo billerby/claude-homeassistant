@@ -194,7 +194,7 @@ rest:
       # statistikdatabas. Uppdateras i början av månaden efter.
       - name: "EX60 i Finland senaste månad"
         unique_id: ex60_finland_senaste_manad
-        availability: "{{ value_json.fi_senaste_manad is not none }}"
+        availability: "{{ value_json.fi_senaste_manad is defined and value_json.fi_senaste_manad is not none }}"
         value_template: "{{ value_json.fi_senaste_antal | int(0) }}"
         unit_of_measurement: "bilar"
         state_class: measurement
@@ -209,7 +209,7 @@ rest:
       # plus de danska bilarna.
       - name: "EX60 högsta kända löpnummer"
         unique_id: ex60_hogsta_kanda_lopnummer
-        availability: "{{ value_json.lopnr_hogsta is not none }}"
+        availability: "{{ value_json.lopnr_hogsta is defined and value_json.lopnr_hogsta is not none }}"
         value_template: "{{ value_json.lopnr_hogsta.lopnummer | int(0) }}"
         state_class: measurement
         icon: mdi:numeric
@@ -221,18 +221,17 @@ rest:
 
       - name: "EX60 takt nu"
         unique_id: ex60_takt_nu
-        availability: "{{ value_json.lopnr_takt_per_dag is defined }}"
+        availability: "{{ value_json.lopnr_takt_per_dag is defined and value_json.lopnr_takt_per_dag is not none }}"
         value_template: "{{ value_json.lopnr_takt_per_dag | float(0) }}"
         unit_of_measurement: "bilar/dag"
         state_class: measurement
         icon: mdi:speedometer
         json_attributes:
           - lopnr_takt_punkter
-          - lopnr_framskrivet_fran
 
       - name: "EX60 uppskattat löpnummer i dag"
         unique_id: ex60_uppskattat_lopnummer_i_dag
-        availability: "{{ value_json.lopnr_uppskattat_idag is defined }}"
+        availability: "{{ value_json.lopnr_uppskattat_idag is defined and value_json.lopnr_uppskattat_idag is not none }}"
         value_template: "{{ value_json.lopnr_uppskattat_idag | int(0) }}"
         state_class: measurement
         icon: mdi:numeric
@@ -241,7 +240,7 @@ rest:
 
       - name: "EX60 krävs per dag för målet"
         unique_id: ex60_kravs_per_dag_for_malet
-        availability: "{{ value_json.lopnr_kravs_per_dag is defined }}"
+        availability: "{{ value_json.lopnr_kravs_per_dag is defined and value_json.lopnr_kravs_per_dag is not none }}"
         value_template: "{{ value_json.lopnr_kravs_per_dag | int(0) }}"
         unit_of_measurement: "bilar/dag"
         state_class: measurement
