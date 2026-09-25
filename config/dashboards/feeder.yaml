@@ -599,20 +599,15 @@ views:
               {% set k = 'sensor.ex60_kravs_per_dag_for_malet' %}
               {% set bad = ['unknown', 'unavailable'] %}
               {% if states(t) not in bad %}
-              Torslanda bygger ≈ **{{ states(t) | round(0) | int }} EX60 per dag**, räknat ur
-              {{ state_attr(t, 'lopnr_takt_punkter') }} bilar med känt byggdatum
-              {%- if state_attr(u, 'lopnr_framskrivet_fran') %} (senast {{ as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m') }}){% endif %}.
+              Torslanda bygger ≈ **{{ states(t) | round(0) | int }} EX60 per dag**, räknat ur {{ state_attr(t, 'lopnr_takt_punkter') }} bilar med känt byggdatum{% if state_attr(u, 'lopnr_framskrivet_fran') %} (senast {{ as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m') }}){% endif %}.
               {% else %}
               Takten går inte att räkna ut: det behövs minst två bilar med byggdatum.
               {% endif %}
               {% if states(k) not in bad %}
-              Målet {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år kräver
-              ≈ **{{ states(k) }} per dag**{% if state_attr(k, 'lopnr_kravs_ganger_takten') %}, {{ state_attr(k, 'lopnr_kravs_ganger_takten') | replace('.', ',') }} × dagens takt{% endif %}.
+              Målet {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år kräver ≈ **{{ states(k) }} per dag**{% if state_attr(k, 'lopnr_kravs_ganger_takten') %}, {{ state_attr(k, 'lopnr_kravs_ganger_takten') | replace('.', ',') }} × dagens takt{% endif %}.
               {% endif %}
               {% if states(h) not in bad %}
-              Högsta kända löpnummer är #{{ '%06d' | format(states(h) | int) }}
-              ({{ state_attr(h, 'typ') or '' }}
-              {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (', ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }}).
+              Högsta kända löpnummer är #{{ '%06d' | format(states(h) | int) }} ({{ state_attr(h, 'typ') or '' }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (', ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }}).
               {% endif %}
 
       # --- 2. Leveranser i Europa ---------------------------------------------
@@ -628,8 +623,6 @@ views:
             heading_style: title
             icon: mdi:earth
           - type: custom:apexcharts-card
-            grid_options:
-              columns: full
             graph_span: 6month
             span:
               end: month
@@ -738,8 +731,6 @@ views:
             heading_style: title
             icon: mdi:magnify
           - type: custom:apexcharts-card
-            grid_options:
-              columns: full
             graph_span: 60d
             span:
               end: day
