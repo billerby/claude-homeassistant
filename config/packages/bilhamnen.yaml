@@ -259,7 +259,6 @@ rest:
         state_class: total
         icon: mdi:car-electric-outline
         json_attributes:
-          - nl_30d
           - nl_till_och_med
           - nl_hamtad
           - nl_per_dag
