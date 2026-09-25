@@ -297,6 +297,20 @@ rest:
         state_class: measurement
         icon: mdi:calendar-month
 
+      # Nyregistreringar av EX60 i Tyskland per månad enligt KBA FZ 10.
+      # Publiceras i början av månaden efter; uppgifter per fordon finns inte.
+      - name: "EX60 i Tyskland senaste månad"
+        unique_id: ex60_tyskland_senaste_manad
+        availability: "{{ value_json.de_senaste_manad is defined and value_json.de_senaste_manad is not none }}"
+        value_template: "{{ value_json.de_senaste_antal | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:car-electric-outline
+        json_attributes:
+          - de_senaste_manad
+          - de_totalt
+          - de_per_manad
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper

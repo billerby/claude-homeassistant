@@ -730,6 +730,36 @@ views:
               return (entity.attributes.fi_per_manad || []).map(m =>
                 [new Date(m.manad + '-15T12:00:00').getTime(), m.antal]);
 
+      # --- EX60 i Tyskland -----------------------------------------------------------
+      # Nyregistreringar per månad enligt KBA FZ 10, samma form som Finland.
+      # KBA publicerar i början av månaden efter, så senaste månaden står i
+      # rubriken i stället för bland registreringssiffrorna.
+      - type: custom:apexcharts-card
+        graph_span: 12month
+        span:
+          end: month
+        header:
+          show: true
+          title: EX60 nyregistreringar i Tyskland per månad
+          show_states: true
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+          plotOptions:
+            bar:
+              borderRadius: 3
+              columnWidth: 60%
+        series:
+          - entity: sensor.ex60_i_tyskland_senaste_manad
+            name: Senaste månaden
+            color: '#2a78d6'
+            type: column
+            data_generator: |
+              return (entity.attributes.de_per_manad || []).map(m =>
+                [new Date(m.manad + '-15T12:00:00').getTime(), m.antal]);
+
       # --- EX60 i Danmark -----------------------------------------------------------
       # Löpnumren ur Danmarks motorregister, högst först. Datumet är
       # registrering eller, för Oprettet, när bilen lades in i registret;
@@ -757,4 +787,4 @@ views:
         content: |
           <sub>Löpnummer och punkter: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP).
           Sverige: car.info (Transportstyrelsen). Danmark: Skattestyrelsens motorregister, veckovis.
-          Finland: Traficom, månadsvis. Nederländerna: RDW öppen data, dagligen. Norge: elbilstatistikk.no.</sub>
+          Finland: Traficom, månadsvis. Nederländerna: RDW öppen data, dagligen. Norge: elbilstatistikk.no. Tyskland: KBA FZ 10, månadsvis.</sub>
