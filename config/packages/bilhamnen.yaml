@@ -311,6 +311,21 @@ rest:
           - de_totalt
           - de_per_manad
 
+      # Alla länders registreringar per månad i samma form, och en tabellrad
+      # per land. Underlag för EX60-flikens jämförelse mellan länder.
+      # Tillståndet är summan av ländernas totaler.
+      - name: "EX60 registreringar i Europa"
+        unique_id: ex60_registreringar_europa
+        availability: "{{ value_json.reg_tabell is defined and value_json.reg_tabell | length > 0 }}"
+        value_template: "{{ value_json.reg_tabell | map(attribute='totalt') | sum }}"
+        unit_of_total: "bilar"
+        state_class: total
+        icon: mdi:earth
+        json_attributes:
+          - reg_manader
+          - reg_per_manad
+          - reg_tabell
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper
