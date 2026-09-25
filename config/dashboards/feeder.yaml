@@ -577,6 +577,7 @@ views:
             icon: mdi:factory
           - type: tile
             entity: sensor.ex60_hogsta_kanda_lopnummer
+            icon: mdi:barcode
             name: Högsta löpnummer
             vertical: true
           - type: tile
@@ -585,6 +586,7 @@ views:
             vertical: true
           - type: tile
             entity: sensor.ex60_uppskattat_lopnummer_i_dag
+            icon: mdi:chart-timeline-variant
             name: Uppskattat i dag
             vertical: true
           - type: tile
@@ -704,24 +706,31 @@ views:
                       const v = (entity.attributes.reg_per_manad || {}).DE || [];
                       return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
 
-          # Samma siffror som tabell, med samma kolumner för alla länder.
-          # "Senaste" är 30 dagar för länder med dagsdata, annars den senaste
-          # publicerade månaden - kolumnen säger vilket.
+          # Samma siffror som tabell, med samma kolumner för alla länder: senaste
+          # hela månaden (jämförbar för alla) och innevarande månad hittills.
+          # Streck betyder att siffran inte är publicerad än (Finland och
+          # Tyskland ligger en månad efter), inte att den är noll. Månaderna
+          # följer reg_manader från Pi:n och byts automatiskt.
           - type: markdown
             grid_options:
               columns: full
             content: |
               {% set e = 'sensor.ex60_registreringar_i_europa' %}
               {% set rows = state_attr(e, 'reg_tabell') or [] %}
+              {% set months = state_attr(e, 'reg_manader') or [] %}
+              {% set series = state_attr(e, 'reg_per_manad') or {} %}
               {% set mon = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'] %}
+              {% macro mname(m) %}{{ mon[(m[5:7] | int) - 1] }}{% endmacro %}
               {% macro dag(d) -%}
-              {%- if d | length == 10 -%}{{ d[8:10] | int }}/{{ d[5:7] | int }}{%- else -%}{{ mon[(d[5:7] | int) - 1] }}{%- endif -%}
+              {%- if d | length == 10 -%}{{ d[8:10] | int }}/{{ d[5:7] | int }}{%- else -%}{{ mname(d) }}{%- endif -%}
               {%- endmacro %}
-              {% if rows %}
-              | Land | Totalt | Senaste | Data t.o.m. |
-              |:--|--:|--:|:--|
+              {% macro val(v) %}{{ v if v is not none else '–' }}{% endmacro %}
+              {% if rows and months | length >= 2 %}
+              | Land | Totalt | {{ mname(months[-2]) }} | {{ mname(months[-1]) }} (hittills) | Data t.o.m. |
+              |:--|--:|--:|--:|:--|
               {% for r in rows -%}
-              | {{ r.namn }} | {{ r.totalt }} | {{ r.senaste if r.senaste is not none else '–' }} <sub>{{ r.senaste_avser if 'dagar' in r.senaste_avser or 'månad' in r.senaste_avser else mon[(r.senaste_avser[5:7] | int) - 1] }}</sub> | {{ dag(r.till_och_med) }} |
+              {% set s = series.get(r.land) or [] -%}
+              | {{ r.namn }} | {{ r.totalt }} | {{ val(s[-2] if s | length >= 2 else none) }} | {{ val(s[-1] if s else none) }} | {{ dag(r.till_och_med) }} |
               {% endfor %}
 
               {% for r in rows if r.anm -%}
