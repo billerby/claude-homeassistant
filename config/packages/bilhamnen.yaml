@@ -204,6 +204,52 @@ rest:
           - fi_totalt
           - fi_per_manad
 
+      # Produktionstakt ur löpnumren, räknad på Pi:n på samma sätt som på
+      # löpnummersidan. Punkterna finns i lopnummer.json i bilhamnen-repot
+      # plus de danska bilarna.
+      - name: "EX60 högsta kända löpnummer"
+        unique_id: ex60_hogsta_kanda_lopnummer
+        availability: "{{ value_json.lopnr_hogsta is not none }}"
+        value_template: "{{ value_json.lopnr_hogsta.lopnummer | int(0) }}"
+        state_class: measurement
+        icon: mdi:numeric
+        json_attributes_path: "$.lopnr_hogsta"
+        json_attributes:
+          - typ
+          - datum
+          - land
+
+      - name: "EX60 takt nu"
+        unique_id: ex60_takt_nu
+        availability: "{{ value_json.lopnr_takt_per_dag is defined }}"
+        value_template: "{{ value_json.lopnr_takt_per_dag | float(0) }}"
+        unit_of_measurement: "bilar/dag"
+        state_class: measurement
+        icon: mdi:speedometer
+        json_attributes:
+          - lopnr_takt_punkter
+          - lopnr_framskrivet_fran
+
+      - name: "EX60 uppskattat löpnummer i dag"
+        unique_id: ex60_uppskattat_lopnummer_i_dag
+        availability: "{{ value_json.lopnr_uppskattat_idag is defined }}"
+        value_template: "{{ value_json.lopnr_uppskattat_idag | int(0) }}"
+        state_class: measurement
+        icon: mdi:numeric
+        json_attributes:
+          - lopnr_framskrivet_fran
+
+      - name: "EX60 krävs per dag för målet"
+        unique_id: ex60_kravs_per_dag_for_malet
+        availability: "{{ value_json.lopnr_kravs_per_dag is defined }}"
+        value_template: "{{ value_json.lopnr_kravs_per_dag | int(0) }}"
+        unit_of_measurement: "bilar/dag"
+        state_class: measurement
+        icon: mdi:flag-checkered
+        json_attributes:
+          - lopnr_mal
+          - lopnr_kravs_ganger_takten
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper
