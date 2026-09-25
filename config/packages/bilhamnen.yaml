@@ -249,6 +249,28 @@ rest:
           - lopnr_mal
           - lopnr_kravs_ganger_takten
 
+      # EX60 i Nederländerna enligt RDW:s öppna data, per dag för första
+      # registrering i landet. Ingen VIN, så antal men inga löpnummer.
+      - name: "EX60 i Nederländerna"
+        unique_id: ex60_nederlanderna_antal
+        availability: "{{ value_json.nl_totalt is defined and value_json.nl_totalt is not none }}"
+        value_template: "{{ value_json.nl_totalt | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: total
+        icon: mdi:car-electric-outline
+        json_attributes:
+          - nl_30d
+          - nl_senaste_dag
+          - nl_per_dag
+
+      - name: "EX60 Nederländerna nya 7 dygn"
+        unique_id: ex60_nederlanderna_nya_7d
+        availability: "{{ value_json.nl_7d is defined and value_json.nl_7d is not none }}"
+        value_template: "{{ value_json.nl_7d | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:car-arrow-right
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper

@@ -591,6 +591,10 @@ views:
             name: I Danmark
           - entity: sensor.ex60_danmark_hogsta_lopnummer
             name: Högsta # DK
+          - entity: sensor.ex60_i_nederlanderna
+            name: I Nederländerna
+          - entity: sensor.ex60_nederlanderna_nya_7_dygn
+            name: NL nya 7 d
 
       # --- EX60 i Sverige ---------------------------------------------------------
       # Nyregistreringar per dag från car.info, 60 dagar bakåt. Serien kommer
@@ -622,6 +626,36 @@ views:
             type: column
             data_generator: |
               return (entity.attributes.nyreg_per_dag || []).map(d =>
+                [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+
+      # --- EX60 i Nederländerna ------------------------------------------------------
+      # Första registrering i Nederländerna per dag enligt RDW, 60 dagar
+      # till och med i går. Samma form som de svenska staplarna, så att
+      # vågorna går att jämföra.
+      - type: custom:apexcharts-card
+        graph_span: 60d
+        span:
+          end: day
+        header:
+          show: true
+          title: EX60 nyregistrerade i Nederländerna per dag
+          show_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 220
+          plotOptions:
+            bar:
+              borderRadius: 2
+              columnWidth: 80%
+        series:
+          - entity: sensor.ex60_i_nederlanderna
+            name: Nyregistrerade
+            color: '#2a78d6'
+            type: column
+            data_generator: |
+              return (entity.attributes.nl_per_dag || []).map(d =>
                 [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
 
       # --- EX60 i Finland ------------------------------------------------------------
@@ -684,4 +718,4 @@ views:
         content: |
           <sub>Löpnummer och punkter: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP).
           Sverige: car.info (Transportstyrelsen). Danmark: Skattestyrelsens motorregister, veckovis.
-          Finland: Traficom, månadsvis.</sub>
+          Finland: Traficom, månadsvis. Nederländerna: RDW öppen data, dagligen.</sub>
