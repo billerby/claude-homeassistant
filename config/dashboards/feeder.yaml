@@ -398,6 +398,8 @@ views:
             name: EX60 i DK
           - entity: sensor.ex60_danmark_hogsta_lopnummer
             name: Högsta # DK
+          - entity: sensor.ex60_i_finland_senaste_manad
+            name: FI senaste mån
 
       # --- Vilka båtar ----------------------------------------------------------
       # Tider visas som datum och klockslag i lokal tid. Liggtiden för en båt
@@ -561,6 +563,36 @@ views:
             data_generator: |
               return (entity.attributes.nyreg_per_dag || []).map(d =>
                 [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+
+      # --- EX60 i Finland ------------------------------------------------------------
+      # Första registreringar per månad enligt Traficom. Månadssummor är
+      # diskreta och ritas som staplar; serien börjar vid första månaden
+      # med registreringar.
+      - type: custom:apexcharts-card
+        graph_span: 12month
+        span:
+          end: month
+        header:
+          show: true
+          title: EX60 första registreringar i Finland per månad
+          show_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+          plotOptions:
+            bar:
+              borderRadius: 3
+              columnWidth: 60%
+        series:
+          - entity: sensor.ex60_i_finland_senaste_manad
+            name: Registrerade
+            color: '#2a78d6'
+            type: column
+            data_generator: |
+              return (entity.attributes.fi_per_manad || []).map(m =>
+                [new Date(m.manad + '-15T12:00:00').getTime(), m.antal]);
 
       # --- EX60 i Danmark -----------------------------------------------------------
       # Löpnumren ur Danmarks motorregister, högst först. Datumet är
