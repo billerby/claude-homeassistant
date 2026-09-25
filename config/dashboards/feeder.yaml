@@ -354,12 +354,12 @@ views:
               duration: 5m
 
   # ===========================================================================
-  # Bilhamnen — bilbåtarna i Göteborg och EX60
+  # Bilhamnen — bilbåtarna i Göteborg
   # ===========================================================================
   # Sensorerna definieras i config/packages/bilhamnen.yaml och läses från
   # bilhamnen-tjänsten på samma Pi (se ~/project/bilhamnen). Anlöpen kommer
-  # från Göteborgs Hamns API, djupgåendet från AIS via AISHub och
-  # registreringarna från car.info.
+  # från Göteborgs Hamns API och djupgåendet från AIS via AISHub. EX60 har
+  # en egen flik längre ner.
   #
   # Samma principer som feeder-vyn: nuläget som siffror, vilka fartyg som en
   # tabell, en storhet per diagram. Anlöp per vecka är diskreta antal och
@@ -388,16 +388,8 @@ views:
             name: Liggtid senaste
           - entity: sensor.bilhamnen_djupgaende_senaste
             name: Djupgående +/-
-          - entity: sensor.ex60_registrerade_i_sverige
-            name: EX60 i Sverige
-          - entity: sensor.ex60_nyregistreringar_7_dygn
-            name: Nya 7 d
           - entity: sensor.bilhamnen_wallenius_30_dygn
             name: Wallenius 30 d
-          - entity: sensor.ex60_i_danmark
-            name: EX60 i DK
-          - entity: sensor.ex60_danmark_hogsta_lopnummer
-            name: Högsta # DK
 
       # --- Vilka båtar ----------------------------------------------------------
       # Tider visas som datum och klockslag i lokal tid. Liggtiden för en båt
@@ -530,6 +522,76 @@ views:
             curve: stepline
             stroke_width: 2
 
+      # --- Agenter ---------------------------------------------------------------
+      # Vem som lastar säger vart bilarna går: Wallenius Wilhelmsen kör
+      # långlinjerna, CEVA och Scandinavia Shipping mest Europa.
+      - type: markdown
+        title: Agenter senaste 30 dygn
+        content: |
+          {% set ag = state_attr('sensor.bilhamnen_anlop_7_dygn', 'per_agent_30d') %}
+          {% if ag %}
+          | Agent | Anlöp |
+          |---|--:|
+          {% for name, n in ag.items() -%}
+          | {{ name }} | {{ n }} |
+          {% endfor %}
+          {% else %}
+          Inga anlöp senaste 30 dygn.
+          {% endif %}
+
+          <sub>Data från {{ as_timestamp(state_attr('sensor.bilhamnen_anlop_7_dygn', 'genererad')) | timestamp_custom('%-d/%-m %H:%M') }}.</sub>
+
+  # ===========================================================================
+  # EX60 — produktion och registreringar
+  # ===========================================================================
+  # Skild från Bilhamnen: hamnen visar vad som skeppas ut, den här fliken
+  # vad som byggs (löpnummer ur VIN) och vad som registreras i Sverige,
+  # Danmark och Finland. Allt kommer från bilhamnen-tjänsten på Pi:n.
+  #
+  # Löpnumren räknas som på löpnummersidan (länkad längst ner): högsta
+  # kända är det högsta löpnummer vi sett oavsett typ; takten är en linjär
+  # anpassning över byggdatum inom 60 dagar före det senaste. Registrerade
+  # och sedda bilar säger bara att bilen var byggd före datumet.
+  - title: EX60
+    path: ex60
+    icon: mdi:car-electric
+    cards:
+
+      # --- Produktion ------------------------------------------------------------
+      # Samma fyra siffror som överst på löpnummersidan, med förklaringen
+      # under varje siffra. En tabell i stället för fyra kort, så att
+      # siffra och förklaring hålls ihop även på mobil.
+      - type: markdown
+        title: Produktion
+        content: |
+          {% set h = 'sensor.ex60_hogsta_kanda_lopnummer' %}
+          {% set t = 'sensor.ex60_takt_nu' %}
+          {% set u = 'sensor.ex60_uppskattat_lopnummer_i_dag' %}
+          {% set k = 'sensor.ex60_kravs_per_dag_for_malet' %}
+          {% set bad = ['unknown', 'unavailable'] %}
+          {% set h_ok = states(h) not in bad %}
+          {% set t_ok = states(t) not in bad %}
+          {% set u_ok = states(u) not in bad %}
+          {% set k_ok = states(k) not in bad %}
+          | Högsta kända | Takt nu | Uppskattat i dag | Krävs för {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år |
+          |:-:|:-:|:-:|:-:|
+          | **{{ ('#%06d' | format(states(h) | int)) if h_ok else '–' }}** | **{{ (states(t) | round(0) | int) if t_ok else '–' }} / dag** | **{{ ('#%06d' | format(states(u) | int)) if u_ok else '–' }}** | **{{ states(k) if k_ok else '–' }} / dag** |
+          | {{ state_attr(h, 'typ') or '' }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (' · ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }} | {{ ('≈ ' ~ ((states(t) | float(0)) * 7) | round | int ~ ' i veckan · ' ~ state_attr(t, 'lopnr_takt_punkter') ~ ' punkter') if t_ok else '' }} | {{ ('framskrivet från ' ~ (as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m'))) if state_attr(u, 'lopnr_framskrivet_fran') else '' }} | {{ (state_attr(k, 'lopnr_kravs_ganger_takten') ~ ' × takten nu') if state_attr(k, 'lopnr_kravs_ganger_takten') else '' }} |
+
+      # --- Registreringar: nuläget -----------------------------------------------
+      - type: glance
+        title: Registreringar
+        columns: 2
+        entities:
+          - entity: sensor.ex60_registrerade_i_sverige
+            name: I Sverige
+          - entity: sensor.ex60_nyregistreringar_7_dygn
+            name: SE nya 7 d
+          - entity: sensor.ex60_i_danmark
+            name: I Danmark
+          - entity: sensor.ex60_danmark_hogsta_lopnummer
+            name: Högsta # DK
+
       # --- EX60 i Sverige ---------------------------------------------------------
       # Nyregistreringar per dag från car.info, 60 dagar bakåt. Serien kommer
       # som attribut från Pi:n, som hämtar om den varje dygn eftersom car.info
@@ -562,6 +624,39 @@ views:
               return (entity.attributes.nyreg_per_dag || []).map(d =>
                 [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
 
+      # --- EX60 i Finland ------------------------------------------------------------
+      # Första registreringar per månad enligt Traficom. Månadssummor är
+      # diskreta och ritas som staplar; serien börjar vid första månaden
+      # med registreringar. Senaste månadens antal står i rubriken, bredvid
+      # staplarna, och inte bland registreringssiffrorna ovan: Traficom
+      # ligger upp till en månad efter, så det går inte att jämföra med
+      # de svenska sjudagarssiffrorna.
+      - type: custom:apexcharts-card
+        graph_span: 12month
+        span:
+          end: month
+        header:
+          show: true
+          title: EX60 första registreringar i Finland per månad
+          show_states: true
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+          plotOptions:
+            bar:
+              borderRadius: 3
+              columnWidth: 60%
+        series:
+          - entity: sensor.ex60_i_finland_senaste_manad
+            name: Senaste månaden
+            color: '#2a78d6'
+            type: column
+            data_generator: |
+              return (entity.attributes.fi_per_manad || []).map(m =>
+                [new Date(m.manad + '-15T12:00:00').getTime(), m.antal]);
+
       # --- EX60 i Danmark -----------------------------------------------------------
       # Löpnumren ur Danmarks motorregister, högst först. Datumet är
       # registrering eller, för Oprettet, när bilen lades in i registret;
@@ -584,21 +679,9 @@ views:
           Ingen dansk registerfil läst än. Pi:n läser den natten efter att den lagts ut.
           {% endif %}
 
-      # --- Agenter ---------------------------------------------------------------
-      # Vem som lastar säger vart bilarna går: Wallenius Wilhelmsen kör
-      # långlinjerna, CEVA och Scandinavia Shipping mest Europa.
+      # --- Källor -----------------------------------------------------------------
       - type: markdown
-        title: Agenter senaste 30 dygn
         content: |
-          {% set ag = state_attr('sensor.bilhamnen_anlop_7_dygn', 'per_agent_30d') %}
-          {% if ag %}
-          | Agent | Anlöp |
-          |---|--:|
-          {% for name, n in ag.items() -%}
-          | {{ name }} | {{ n }} |
-          {% endfor %}
-          {% else %}
-          Inga anlöp senaste 30 dygn.
-          {% endif %}
-
-          <sub>Data från {{ as_timestamp(state_attr('sensor.bilhamnen_anlop_7_dygn', 'genererad')) | timestamp_custom('%-d/%-m %H:%M') }}. EX60-löpnummer: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP)</sub>
+          <sub>Löpnummer och punkter: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP).
+          Sverige: car.info (Transportstyrelsen). Danmark: Skattestyrelsens motorregister, veckovis.
+          Finland: Traficom, månadsvis.</sub>
