@@ -260,7 +260,8 @@ rest:
         icon: mdi:car-electric-outline
         json_attributes:
           - nl_30d
-          - nl_senaste_dag
+          - nl_till_och_med
+          - nl_hamtad
           - nl_per_dag
 
       - name: "EX60 Nederländerna nya 7 dygn"
