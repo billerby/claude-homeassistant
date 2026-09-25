@@ -271,6 +271,32 @@ rest:
         state_class: measurement
         icon: mdi:car-arrow-right
 
+      # EX60 i Norge enligt elbilstatistikk.no, läst var tredje timme.
+      # Registreringar per dag byggs av Pi:n ur totalerna och börjar när
+      # den började läsa sidan.
+      - name: "EX60 i Norge"
+        unique_id: ex60_norge_antal
+        availability: "{{ value_json.no_totalt is defined and value_json.no_totalt is not none }}"
+        value_template: "{{ value_json.no_totalt | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: total
+        icon: mdi:car-electric-outline
+        json_attributes:
+          - no_idag
+          - no_forra_manad
+          - no_forra_manad_namn
+          - no_7d
+          - no_hamtad
+          - no_per_dag
+
+      - name: "EX60 Norge denna månad"
+        unique_id: ex60_norge_denna_manad
+        availability: "{{ value_json.no_manad is defined and value_json.no_manad is not none }}"
+        value_template: "{{ value_json.no_manad | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:calendar-month
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper

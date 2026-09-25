@@ -596,6 +596,10 @@ views:
             name: I Nederländerna
           - entity: sensor.ex60_nederlanderna_nya_7_dygn
             name: NL nya 7 d
+          - entity: sensor.ex60_i_norge
+            name: I Norge
+          - entity: sensor.ex60_norge_denna_manad
+            name: NO denna mån
 
       # --- EX60 i Sverige ---------------------------------------------------------
       # Nyregistreringar per dag från car.info, 60 dagar bakåt. Serien kommer
@@ -662,6 +666,36 @@ views:
               return (entity.attributes.nl_per_dag || []).map(d =>
                 [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
 
+      # --- EX60 i Norge -------------------------------------------------------------
+      # Registreringar per dag enligt elbilstatistikk.no. Sidan har bara
+      # summor, så serien byggs av Pi:n ur dygnens totaler och börjar när
+      # den började läsa (25/9). Förra månadens antal står i rubriken.
+      - type: custom:apexcharts-card
+        graph_span: 60d
+        span:
+          end: day
+        header:
+          show: true
+          title: EX60 nyregistrerade i Norge per dag
+          show_states: false
+        apex_config:
+          legend:
+            show: false
+          chart:
+            height: 200
+          plotOptions:
+            bar:
+              borderRadius: 2
+              columnWidth: 80%
+        series:
+          - entity: sensor.ex60_i_norge
+            name: Nyregistrerade
+            color: '#2a78d6'
+            type: column
+            data_generator: |
+              return (entity.attributes.no_per_dag || []).map(d =>
+                [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+
       # --- EX60 i Finland ------------------------------------------------------------
       # Första registreringar per månad enligt Traficom. Månadssummor är
       # diskreta och ritas som staplar; serien börjar vid första månaden
@@ -722,4 +756,4 @@ views:
         content: |
           <sub>Löpnummer och punkter: [EX60 Löpnummer](https://claude.ai/artifact/SxxqEXURW7MjnwVb4KCayP).
           Sverige: car.info (Transportstyrelsen). Danmark: Skattestyrelsens motorregister, veckovis.
-          Finland: Traficom, månadsvis. Nederländerna: RDW öppen data, dagligen.</sub>
+          Finland: Traficom, månadsvis. Nederländerna: RDW öppen data, dagligen. Norge: elbilstatistikk.no.</sub>
