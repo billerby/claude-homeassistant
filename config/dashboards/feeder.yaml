@@ -669,7 +669,8 @@ views:
       # --- EX60 i Norge -------------------------------------------------------------
       # Registreringar per dag enligt elbilstatistikk.no. Sidan har bara
       # summor, så serien byggs av Pi:n ur dygnens totaler och börjar när
-      # den började läsa (25/9). Förra månadens antal står i rubriken.
+      # den började läsa (25/9). Förra månadens antal finns som attribut på
+      # sensor.ex60_i_norge men visas inte här.
       - type: custom:apexcharts-card
         graph_span: 60d
         span:
