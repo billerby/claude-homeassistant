@@ -15,8 +15,10 @@
 #
 # VAD SIFFRORNA BETYDER:
 # Anlöp per vecka är en grov proxy för hur mycket som lämnar Göteborg, inte
-# för EX60 specifikt — samma kaj lastar XC60, EX90 och Polestar. Liggtiden är
-# den intressantare serien: en båt som ligger längre lastar rimligen mer.
+# för EX60 specifikt — samma kaj lastar Torslandas XC60 och XC90, och
+# möjligen EX90 (byggs säkert i USA). Polestar byggs inte i Torslanda.
+# Liggtiden är den intressantare serien: en båt som ligger längre lastar
+# rimligen mer.
 # Normalläget hösten 2026 är 2–5 anlöp i veckan och en median kring 17 timmar.
 #
 # Bekräftade anlöp räknas, planerade gör det inte. `isActual` i API:et blir
