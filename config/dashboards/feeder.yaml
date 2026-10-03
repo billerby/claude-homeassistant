@@ -745,6 +745,8 @@ views:
       # Lagret hos de handlare på Dealer.com som Pi:n går igenom på söndagar.
       # Inga registreringar som i Europa, utan bilar till salu eller på väg,
       # så avdelningen hålls skild från länderna ovan.
+      # Rutorna döljs tills det finns en lyckad körning; texten under säger
+      # då varför det saknas siffror.
       - type: grid
         cards:
           - type: heading
@@ -754,9 +756,17 @@ views:
           - type: tile
             entity: sensor.ex60_i_amerikanska_handlares_lager
             name: I lager nu
+            visibility:
+              - condition: state
+                entity: sensor.ex60_i_amerikanska_handlares_lager
+                state_not: unavailable
           - type: tile
             entity: sensor.ex60_usa_hogsta_lopnummer
             name: Högsta löpnummer
+            visibility:
+              - condition: state
+                entity: sensor.ex60_usa_hogsta_lopnummer
+                state_not: unavailable
           - type: markdown
             grid_options:
               columns: full
