@@ -9,14 +9,14 @@ This repository manages Home Assistant configuration files with automated valida
 - `venv/` - Python virtual environment with dependencies
 - `temp/` - Temporary directory for Claude to write and test code before moving to final locations
 - `Makefile` - Commands for pulling/pushing configuration
-- `.claude-code/` - Project-specific Claude Code settings and hooks
-  - `hooks/` - Validation hooks that run automatically
-  - `settings.json` - Project configuration
+- `.claude/settings.json` - Registers the Claude Code hooks
+- `.claude-code/hooks/` - Hook scripts (validation runs automatically)
 
 ## Available Commands
 
 ### Configuration Management
 - `make pull` - Pull latest config from Home Assistant instance
+- `make diff` - Show what `make push` would change on HA (dry run; files only on HA would be deleted)
 - `make push` - Push local config to Home Assistant (with validation)
 - `make backup` - Create backup of current config
 - `make validate` - Run all validation tests
@@ -52,7 +52,7 @@ This project includes comprehensive validation to prevent invalid configurations
 ### Automated Validation Hooks
 
 - **Post-Edit Hook**: Runs validation after editing any YAML files in `config/`
-- **Pre-Push Hook**: Validates configuration before pushing to Home Assistant
+- **Pre-Push Hook**: Blocks a raw `rsync`/`scp` to the HA host unless validation passes (`make push` validates itself)
 - **Blocks invalid pushes**: Prevents uploading broken configurations
 
 ## Home Assistant Instance Details
@@ -77,7 +77,8 @@ The system tracks entities across these domains:
 2. **Edit Locally**: Modify files in `config/` directory
 3. **Auto-Validation**: Hooks automatically validate on edits
 4. **Test Changes**: `make validate` for full test suite
-5. **Deploy**: `make push` to upload (blocked if validation fails)
+5. **Review**: `make diff` to see what would change on HA, including UI edits made since the last pull
+6. **Deploy**: `make push` to upload (blocked if validation fails)
 
 ## Key Features
 

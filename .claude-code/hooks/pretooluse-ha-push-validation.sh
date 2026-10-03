@@ -1,39 +1,43 @@
 #!/bin/bash
-# Pre-tool-use hook to validate Home Assistant configuration before pushing
+# PreToolUse hook: block a raw rsync/scp *to* the Home Assistant host unless
+# the configuration validates.
+#
+# `make push` validates on its own, so it is not intercepted here. This hook
+# covers the bypass: Claude copying files to HA directly. Exit 2 blocks the
+# Bash call and shows stderr to Claude.
 
-# Check if we're in a home assistant config project and about to run a push/sync command
-if [ ! -f "config/configuration.yaml" ]; then
-    exit 0  # Not a HA project, skip
+cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+
+command=$(jq -r '.tool_input.command // empty')
+
+case "$command" in
+    *rsync* | *scp*) ;;
+    *) exit 0 ;;
+esac
+
+ha_host=$(sed -n 's/^HA_HOST=//p' .env 2>/dev/null | tr -d "\"'" | tail -1)
+[ -n "$ha_host" ] || exit 0
+
+# A remote destination is the last argument of the command (or of the segment
+# before ; && || |), written as [user@]host:path. A remote *source* (a pull)
+# does not match because a local path follows it.
+host_re=$(printf '%s' "$ha_host" | sed 's/[.[\*^$]/\\&/g')
+if ! printf '%s\n' "$command" |
+    grep -Eq "(rsync|scp)[^;&|]*[[:space:]]([^[:space:]]+@)?${host_re}:[^[:space:]]*[[:space:]]*($|[;&|])"; then
+    exit 0
 fi
 
-# Check if this is a bash command that might push to HA
-if [[ "$CLAUDE_TOOL_NAME" == "Bash" ]]; then
-    # Check if the command contains rsync, scp, or other sync commands to homeassistant
-    if [[ "$CLAUDE_TOOL_ARGS" =~ (rsync|scp).*homeassistant ]]; then
-        echo "🛡️  Pre-push validation: Checking Home Assistant configuration before sync..."
-
-        # Check if validation tools exist
-        if [ ! -f "tools/run_tests.py" ] || [ ! -d "venv" ]; then
-            echo "❌ Home Assistant validation tools not found. Please run setup first."
-            echo "🚫 Blocking push to prevent invalid configuration upload."
-            exit 1
-        fi
-
-        # Run validation (we're already in project root)
-        source venv/bin/activate
-        python tools/run_tests.py
-
-        validation_result=$?
-
-        if [ $validation_result -ne 0 ]; then
-            echo ""
-            echo "🚫 BLOCKING PUSH: Home Assistant configuration validation failed!"
-            echo "   Please fix the errors above before pushing to Home Assistant."
-            echo "   This prevents uploading an invalid configuration that could break HA."
-            echo ""
-            exit 1  # Block the command
-        else
-            echo "✅ Pre-push validation passed! Safe to sync to Home Assistant."
-        fi
-    fi
+if [ ! -f tools/run_tests.py ] || [ ! -x venv/bin/python ]; then
+    echo "Blockerat: valideringsverktygen saknas, kör 'make setup' innan något kopieras till HA." >&2
+    exit 2
 fi
+
+if ! output=$(venv/bin/python tools/run_tests.py 2>&1); then
+    {
+        echo "Blockerat: konfigurationen validerar inte, kopierar inte till $ha_host."
+        echo "$output" | tail -60
+    } >&2
+    exit 2
+fi
+
+exit 0
