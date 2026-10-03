@@ -8,7 +8,9 @@
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
-file_path=$(jq -r '.tool_input.file_path // empty')
+python=venv/bin/python
+[ -x "$python" ] || python=python3
+file_path=$("$python" .claude-code/hooks/hook_input.py file-path)
 
 case "$file_path" in
     */config/*.yaml | */config/*.yml | config/*.yaml | config/*.yml) ;;

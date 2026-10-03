@@ -49,12 +49,14 @@ pull: check-env
 	@echo "$(YELLOW)Running validation to ensure integrity...$(NC)"
 	@$(MAKE) validate
 
-# Push configuration to Home Assistant (with pre-validation)
+# Push configuration to Home Assistant (with pre-validation).
+# --checksum compares content rather than size+mtime, so push sends exactly
+# what `make diff` shows.
 push: check-env
 	@echo "$(GREEN)Validating configuration before push...$(NC)"
 	@$(MAKE) validate
 	@echo "$(GREEN)Validation passed! Pushing to Home Assistant...$(NC)"
-	@rsync -avz --delete --exclude-from=.rsync-excludes-push --rsync-path="sudo rsync" $(LOCAL_CONFIG_PATH) $(HA_HOST):$(HA_REMOTE_PATH)
+	@rsync -avz --checksum --delete --exclude-from=.rsync-excludes-push --rsync-path="sudo rsync" $(LOCAL_CONFIG_PATH) $(HA_HOST):$(HA_REMOTE_PATH)
 	@echo "$(GREEN)Configuration pushed successfully!$(NC)"
 	@echo "$(GREEN)Reloading Home Assistant configuration...$(NC)"
 	@. $(VENV_PATH)/bin/activate && python $(TOOLS_PATH)/reload_config.py

@@ -2,12 +2,15 @@
 # Show what `make push` would change on Home Assistant, without changing it.
 #
 # Uses the same rsync options and exclude file as `make push`, in dry-run mode
-# with --checksum so only real content differences are listed. Files that
+# with --checksum (as push uses) so only real content differences are listed. Files that
 # differ are fetched from HA into a temp dir and shown as a unified diff
 # (HA's version on the left, local on the right). Files that exist only on HA
 # are listed separately: `make push` would delete them.
 #
 # Usage: tools/ha_diff.sh <ha_host> <remote_path> <local_path> <exclude_file>
+#
+# Arrays are expanded as ${a[@]+"${a[@]}"} because bash < 4.4 (macOS /bin/bash)
+# treats an empty "${a[@]}" as unbound under set -u.
 
 set -euo pipefail
 
@@ -46,18 +49,21 @@ if [ ${#changed[@]} -gt 0 ]; then
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
 
-    printf '%s\n' "${changed[@]}" |
+    printf '%s\n' ${changed[@]+"${changed[@]}"} |
         rsync -a --files-from=- --rsync-path="sudo rsync" \
             "$ha_host:$remote_path" "$tmp/"
 
-    color=never
-    [ -t 1 ] && color=always
-    for f in "${changed[@]}"; do
+    # --color is GNU diff only; older macOS diff rejects it.
+    color_opt=()
+    if [ -t 1 ] && diff --color=always /dev/null /dev/null >/dev/null 2>&1; then
+        color_opt=(--color=always)
+    fi
+    for f in ${changed[@]+"${changed[@]}"}; do
         if [[ "$f" =~ $masked_re ]]; then
             echo "=== $f skiljer sig (innehållet visas inte)"
             continue
         fi
-        diff -u --color="$color" \
+        diff -u ${color_opt[@]+"${color_opt[@]}"} \
             --label "HA:$f" --label "lokal:$f" \
             "$tmp/$f" "$local_path$f" || true
     done
@@ -66,11 +72,11 @@ fi
 
 echo "Sammanfattning för make push:"
 echo "  ändras på HA:  ${#changed[@]}"
-for f in "${changed[@]}"; do echo "    ~ $f"; done
+for f in ${changed[@]+"${changed[@]}"}; do echo "    ~ $f"; done
 echo "  nya på HA:     ${#added[@]}"
-for f in "${added[@]}"; do echo "    + $f"; done
+for f in ${added[@]+"${added[@]}"}; do echo "    + $f"; done
 echo "  raderas på HA: ${#deleted[@]}"
-for f in "${deleted[@]}"; do echo "    - $f"; done
+for f in ${deleted[@]+"${deleted[@]}"}; do echo "    - $f"; done
 
 if [ ${#deleted[@]} -gt 0 ]; then
     echo

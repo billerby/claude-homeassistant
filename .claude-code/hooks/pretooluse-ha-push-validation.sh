@@ -8,9 +8,9 @@
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
-command=$(jq -r '.tool_input.command // empty')
+input=$(cat)
 
-case "$command" in
+case "$input" in
     *rsync* | *scp*) ;;
     *) exit 0 ;;
 esac
@@ -18,14 +18,18 @@ esac
 ha_host=$(sed -n 's/^HA_HOST=//p' .env 2>/dev/null | tr -d "\"'" | tail -1)
 [ -n "$ha_host" ] || exit 0
 
-# A remote destination is the last argument of the command (or of the segment
-# before ; && || |), written as [user@]host:path. A remote *source* (a pull)
-# does not match because a local path follows it.
-host_re=$(printf '%s' "$ha_host" | sed 's/[.[\*^$]/\\&/g')
-if ! printf '%s\n' "$command" |
-    grep -Eq "(rsync|scp)[^;&|]*[[:space:]]([^[:space:]]+@)?${host_re}:[^[:space:]]*[[:space:]]*($|[;&|])"; then
-    exit 0
-fi
+python=venv/bin/python
+[ -x "$python" ] || python=python3
+
+printf '%s' "$input" | "$python" .claude-code/hooks/hook_input.py is-push "$ha_host"
+case $? in
+    0) ;;
+    10) exit 0 ;;
+    *)
+        echo "Blockerat: kunde inte avgöra om kommandot kopierar till $ha_host (hook_input.py fallerade)." >&2
+        exit 2
+        ;;
+esac
 
 if [ ! -f tools/run_tests.py ] || [ ! -x venv/bin/python ]; then
     echo "Blockerat: valideringsverktygen saknas, kör 'make setup' innan något kopieras till HA." >&2
