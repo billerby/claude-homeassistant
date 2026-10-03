@@ -264,6 +264,46 @@ rest:
           - lopnr_mal
           - lopnr_kravs_ganger_takten
 
+      # EX60 i amerikanska handlares lager, från Dealer.com-sidorna för
+      # handlarna i usa-handlare.txt på Pi:n. Körs söndagar, så värdet är
+      # en vecka gammalt som mest. I lager inkluderar bilar på väg dit.
+      - name: "EX60 i amerikanska handlares lager"
+        unique_id: ex60_usa_i_lager
+        availability: "{{ value_json.us_korning is defined and value_json.us_korning is not none }}"
+        value_template: "{{ value_json.us_i_lager | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:warehouse
+        json_attributes:
+          - us_korning
+          - us_handlare
+          - us_handlare_ok
+          - us_totalt
+
+      # Högsta löpnumret bland de amerikanska bilarna. Sedd, inte byggd:
+      # bilen fanns i USA när den först syntes.
+      - name: "EX60 USA högsta löpnummer"
+        unique_id: ex60_usa_hogsta_lopnummer
+        availability: "{{ value_json.us_hogsta is defined and value_json.us_hogsta is not none }}"
+        value_template: "{{ value_json.us_hogsta.lopnummer | int(0) }}"
+        state_class: measurement
+        icon: mdi:numeric
+        json_attributes_path: "$.us_hogsta"
+        json_attributes:
+          - forst_sedd
+
+      # Senaste körningen mot handlarna, lyckad eller inte: hur många som
+      # svarade. Noll betyder spärr eller fel, och då står sensorerna ovan
+      # kvar på den senaste lyckade körningen i stället för att visa noll.
+      - name: "EX60 USA senaste försök"
+        unique_id: ex60_usa_senaste_forsok
+        availability: "{{ value_json.us_senaste_forsok is defined and value_json.us_senaste_forsok is not none }}"
+        value_template: "{{ value_json.us_senaste_forsok_ok | int(0) }}"
+        unit_of_measurement: "handlare"
+        icon: mdi:store-alert-outline
+        json_attributes:
+          - us_senaste_forsok
+
       # EX60 i Nederländerna enligt RDW:s öppna data, per dag för första
       # registrering i landet. Ingen VIN, så antal men inga löpnummer.
       - name: "EX60 i Nederländerna"
