@@ -544,10 +544,11 @@ views:
   # ===========================================================================
   # EX60 — produktion och leveranser
   # ===========================================================================
-  # Tre avdelningar, en fråga var, i den ordning de ska läsas:
+  # Fyra avdelningar, en fråga var, i den ordning de ska läsas:
   #   1. Produktion: hur fort bygger Torslanda? (löpnummer ur VIN)
   #   2. Leveranser i Europa: hur går registreringarna, land mot land?
-  #   3. Detaljer: dagsserier, danska löpnummer och källor.
+  #   3. USA: hur många står hos de amerikanska handlarna?
+  #   4. Detaljer: dagsserier, danska löpnummer och källor.
   # Avdelningsvy (type: sections) i stället för masonry, så att ordningen
   # och avdelningarna hålls ihop på både dator och mobil.
   #
@@ -740,7 +741,37 @@ views:
               Inga registreringsdata än.
               {% endif %}
 
-      # --- 3. Detaljer --------------------------------------------------------
+      # --- 3. USA -------------------------------------------------------------
+      # Lagret hos de handlare på Dealer.com som Pi:n går igenom på söndagar.
+      # Inga registreringar som i Europa, utan bilar till salu eller på väg,
+      # så avdelningen hålls skild från länderna ovan.
+      - type: grid
+        cards:
+          - type: heading
+            heading: USA
+            heading_style: title
+            icon: mdi:flag-variant
+          - type: tile
+            entity: sensor.ex60_i_amerikanska_handlares_lager
+            name: I lager nu
+          - type: tile
+            entity: sensor.ex60_usa_hogsta_lopnummer
+            name: Högsta löpnummer
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {% set e = 'sensor.ex60_i_amerikanska_handlares_lager' %}
+              {% set h = 'sensor.ex60_usa_hogsta_lopnummer' %}
+              {% if has_value(e) %}
+              **{{ states(e) }} EX60** i lager eller på väg hos {{ state_attr(e, 'us_handlare_ok') }} av {{ state_attr(e, 'us_handlare') }} handlare, {{ as_timestamp(state_attr(e, 'us_korning')) | timestamp_custom('%-d/%-m') }}. Sammanlagt {{ state_attr(e, 'us_totalt') }} olika bilar sedda{% if has_value(h) %}, högsta löpnummer #{{ '%06d' | format(states(h) | int) }} (först sedd {{ as_timestamp(state_attr(h, 'forst_sedd')) | timestamp_custom('%-d/%-m') }}){% endif %}.
+
+              <sub>Ett urval handlare, inte hela USA. Löpnumren säger att bilen fanns där, inte när den byggdes.</sub>
+              {% else %}
+              Ingen körning mot de amerikanska handlarna än. Den går söndagar kl. 10.
+              {% endif %}
+
+      # --- 4. Detaljer --------------------------------------------------------
       # Dagsserierna för länderna med dagsdata i ett diagram med samma skala
       # och samma färger som ovan, de högsta danska löpnumren och källorna.
       - type: grid
@@ -822,5 +853,5 @@ views:
               Norge elbilstatistikk.no, dagligen. Danmark Skattestyrelsens
               motorregister, veckovis. Finland Traficom, månadsvis.
               Nederländerna RDW öppen data, dagligen. Tyskland KBA FZ 10,
-              månadsvis. Löpnummer och produktionstakt från punkterna på
+              månadsvis. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
               löpnummersidan.</sub>
