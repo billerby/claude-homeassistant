@@ -120,9 +120,10 @@ xcode-select --install  # Installs Command Line Tools including make
 │   ├── reference_validator.py # Entity reference validation
 │   ├── ha_official_validator.py # Official HA validation
 │   └── entity_explorer.py # Entity discovery tool
-├── .claude-code/          # Claude Code project settings
-│   ├── hooks/            # Automated validation hooks
-│   └── settings.json     # Project configuration
+├── .claude/
+│   └── settings.json     # Claude Code hook registration
+├── .claude-code/
+│   └── hooks/            # Hook scripts (validation, formatting)
 ├── .env.example          # Environment configuration template
 ├── venv/                 # Python virtual environment
 ├── Makefile              # Management commands
@@ -294,21 +295,12 @@ TOOLS_PATH=tools                        # Tools directory
 ```
 
 ### Claude Code Settings
-Located in `.claude-code/settings.json`:
-```json
-{
-  "hooks": {
-    "enabled": true,
-    "posttooluse": [".claude-code/hooks/posttooluse-ha-validation.sh"],
-    "pretooluse": [".claude-code/hooks/pretooluse-ha-push-validation.sh"]
-  },
-  "validation": {
-    "enabled": true,
-    "auto_run": true,
-    "block_invalid_push": true
-  }
-}
-```
+Hooks are registered in `.claude/settings.json`; the scripts live in `.claude-code/hooks/`:
+
+- **PostToolUse** (`Edit|Write|MultiEdit`): `posttooluse-ha-validation.sh` runs `tools/run_tests.py` after a YAML file under `config/` changes and reports failures back to Claude.
+- **PreToolUse** (`Bash`): `pretooluse-ha-push-validation.sh` blocks an `rsync`/`scp` *to* `HA_HOST` unless validation passes. `make push` is not intercepted because it validates on its own.
+
+Both read the tool call as JSON on stdin and exit 2 to report or block.
 
 ## 🤝 Contributing
 

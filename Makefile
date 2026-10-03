@@ -20,7 +20,7 @@ YELLOW = \033[1;33m
 RED = \033[0;31m
 NC = \033[0m # No Color
 
-.PHONY: help pull push validate backup clean setup test status entities reload format-yaml check-env
+.PHONY: help pull push diff validate backup clean setup test status entities reload format-yaml check-env
 
 # Default target
 help:
@@ -29,6 +29,7 @@ help:
 	@echo "Available commands:"
 	@echo "  $(YELLOW)pull$(NC)     - Pull latest config from Home Assistant"
 	@echo "  $(YELLOW)push$(NC)     - Push local config to Home Assistant (with validation)"
+	@echo "  $(YELLOW)diff$(NC)     - Show what push would change on Home Assistant (dry run)"
 	@echo "  $(YELLOW)validate$(NC) - Run all validation tests"
 	@echo "  $(YELLOW)backup$(NC)   - Create timestamped backup of current config"
 	@echo "  $(YELLOW)setup$(NC)    - Set up Python environment and dependencies"
@@ -48,16 +49,22 @@ pull: check-env
 	@echo "$(YELLOW)Running validation to ensure integrity...$(NC)"
 	@$(MAKE) validate
 
-# Push configuration to Home Assistant (with pre-validation)
+# Push configuration to Home Assistant (with pre-validation).
+# --checksum compares content rather than size+mtime, so push sends exactly
+# what `make diff` shows.
 push: check-env
 	@echo "$(GREEN)Validating configuration before push...$(NC)"
 	@$(MAKE) validate
 	@echo "$(GREEN)Validation passed! Pushing to Home Assistant...$(NC)"
-	@rsync -avz --delete --exclude-from=.rsync-excludes-push --rsync-path="sudo rsync" $(LOCAL_CONFIG_PATH) $(HA_HOST):$(HA_REMOTE_PATH)
+	@rsync -avz --checksum --delete --exclude-from=.rsync-excludes-push --rsync-path="sudo rsync" $(LOCAL_CONFIG_PATH) $(HA_HOST):$(HA_REMOTE_PATH)
 	@echo "$(GREEN)Configuration pushed successfully!$(NC)"
 	@echo "$(GREEN)Reloading Home Assistant configuration...$(NC)"
 	@. $(VENV_PATH)/bin/activate && python $(TOOLS_PATH)/reload_config.py
 	@echo "$(GREEN)Configuration deployment complete!$(NC)"
+
+# Show what push would change on Home Assistant (dry run, nothing is written)
+diff: check-env
+	@tools/ha_diff.sh "$(HA_HOST)" "$(HA_REMOTE_PATH)" "$(LOCAL_CONFIG_PATH)" .rsync-excludes-push
 
 # Run all validation tests
 validate: check-setup
