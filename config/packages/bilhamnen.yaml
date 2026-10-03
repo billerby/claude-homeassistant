@@ -292,6 +292,18 @@ rest:
         json_attributes:
           - forst_sedd
 
+      # Senaste körningen mot handlarna, lyckad eller inte: hur många som
+      # svarade. Noll betyder spärr eller fel, och då står sensorerna ovan
+      # kvar på den senaste lyckade körningen i stället för att visa noll.
+      - name: "EX60 USA senaste försök"
+        unique_id: ex60_usa_senaste_forsok
+        availability: "{{ value_json.us_senaste_forsok is defined and value_json.us_senaste_forsok is not none }}"
+        value_template: "{{ value_json.us_senaste_forsok_ok | int(0) }}"
+        unit_of_measurement: "handlare"
+        icon: mdi:store-alert-outline
+        json_attributes:
+          - us_senaste_forsok
+
       # EX60 i Nederländerna enligt RDW:s öppna data, per dag för första
       # registrering i landet. Ingen VIN, så antal men inga löpnummer.
       - name: "EX60 i Nederländerna"

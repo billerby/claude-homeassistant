@@ -763,11 +763,17 @@ views:
             content: |
               {% set e = 'sensor.ex60_i_amerikanska_handlares_lager' %}
               {% set h = 'sensor.ex60_usa_hogsta_lopnummer' %}
+              {% set f = 'sensor.ex60_usa_senaste_forsok' %}
+              {% set sparr = has_value(f) and states(f) | int(0) == 0 %}
+              {% if sparr %}
+              ⚠️ Senaste försöket {{ as_timestamp(state_attr(f, 'us_senaste_forsok')) | timestamp_custom('%-d/%-m') }} fick inget svar från någon handlare (spärrade eller nere).{% if has_value(e) %} Siffrorna nedan är från senaste lyckade körningen.{% endif %}
+
+              {% endif %}
               {% if has_value(e) %}
               **{{ states(e) }} EX60** i lager eller på väg hos {{ state_attr(e, 'us_handlare_ok') }} av {{ state_attr(e, 'us_handlare') }} handlare, {{ as_timestamp(state_attr(e, 'us_korning')) | timestamp_custom('%-d/%-m') }}. Sammanlagt {{ state_attr(e, 'us_totalt') }} olika bilar sedda{% if has_value(h) %}, högsta löpnummer #{{ '%06d' | format(states(h) | int) }} (först sedd {{ as_timestamp(state_attr(h, 'forst_sedd')) | timestamp_custom('%-d/%-m') }}){% endif %}.
 
               <sub>Ett urval handlare, inte hela USA. Löpnumren säger att bilen fanns där, inte när den byggdes.</sub>
-              {% else %}
+              {% elif not sparr %}
               Ingen körning mot de amerikanska handlarna än. Den går söndagar kl. 10.
               {% endif %}
 
