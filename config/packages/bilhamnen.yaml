@@ -137,8 +137,8 @@ rest:
           - in_m
           - ut_m
 
-      # Registrerade EX60 i Sverige enligt car.info, läst en gång per dygn.
-      # Det är svenska leveranser, inte produktion eller export.
+      # EX60 i trafik i Sverige enligt car.infos statistiksida, läst en gång
+      # per dygn. Det är svenska leveranser, inte produktion eller export.
       - name: "EX60 registrerade i Sverige"
         unique_id: ex60_registrerade_se
         availability: "{{ value_json.registrerade_se is not none }}"
@@ -148,11 +148,26 @@ rest:
         icon: mdi:car-electric
         json_attributes:
           - registrerade_se_dag
+          - registrerade_se_i_registret
+          - registrerade_se_i_registret_dag
           - registrerade_se_7d
           - registrerade_se_30d
           - registrerade_se_till_salu
           - nyreg_senaste_dag
           - nyreg_per_dag
+
+      # Modellsidans "Det finns N registrerade": alla EX60 i registret, även
+      # bilar som inte ställts på än. Skillnaden mot antalet i trafik är
+      # ungefär vad som står hos handlarna och väntar på kund.
+      - name: "EX60 i registret i Sverige"
+        unique_id: ex60_i_registret_se
+        availability: "{{ value_json.registrerade_se_i_registret is not none }}"
+        value_template: "{{ value_json.registrerade_se_i_registret | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: total
+        icon: mdi:car-clock
+        json_attributes:
+          - registrerade_se_i_registret_dag
 
       - name: "EX60 nyregistreringar 7 dygn"
         unique_id: ex60_nyregistreringar_7d
