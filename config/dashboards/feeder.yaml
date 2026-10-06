@@ -792,8 +792,15 @@ views:
               {% set nh = 'sensor.ex60_new_york_hogsta_lopnummer' %}
               {% if has_value(n) %}
               {% set d = state_attr(n, 'ny_data_fran') %}
+              {% set hamtad = as_timestamp(state_attr(n, 'ny_hamtad'), 0) %}
+              {% set senast = as_timestamp(state_attr(n, 'ny_senaste_reg'), none) %}
+              {% set reg = as_timestamp(state_attr(nh, 'registrerad'), none) %}
+              {% if as_timestamp(now()) - hamtad > 2 * 86400 %}
+              ⚠️ New Yorks register har inte gått att hämta sedan {{ hamtad | timestamp_custom('%-d/%-m') }}. Siffrorna nedan är från då.
+
+              {% endif %}
               {% if states(n) | int(0) > 0 %}
-              **{{ states(n) }} EX60** i New Yorks fordonsregister, senast registrerad {{ as_timestamp(state_attr(n, 'ny_senaste_reg')) | timestamp_custom('%-d/%-m') }}{% if has_value(nh) %}, högsta löpnummer #{{ '%06d' | format(states(nh) | int) }} (registrerad {{ as_timestamp(state_attr(nh, 'registrerad')) | timestamp_custom('%-d/%-m') }}){% endif %}.
+              **{{ states(n) }} EX60** i New Yorks fordonsregister{% if senast %}, senast registrerad {{ senast | timestamp_custom('%-d/%-m') }}{% endif %}{% if has_value(nh) %}, högsta löpnummer #{{ '%06d' | format(states(nh) | int) }}{% if reg %} (registrerad {{ reg | timestamp_custom('%-d/%-m') }}){% endif %}{% endif %}.
               {% else %}
               Inga EX60 i New Yorks fordonsregister än.
               {% endif %}

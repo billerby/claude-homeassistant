@@ -309,7 +309,8 @@ rest:
       # EX60 i New Yorks fordonsregister (data.ny.gov), med fullständigt VIN.
       # Pi:n frågar en gång per dygn; DMV byter datan ungefär varje vecka,
       # och ny_data_fran säger när. Noll är inget fel: inga EX60 fanns där
-      # när källan lades till 2026-10-06.
+      # när källan lades till 2026-10-06. Antalet är bilarna i senaste
+      # hämtningen; ny_totalt räknar även avregistrerade.
       - name: "EX60 i New York"
         unique_id: ex60_new_york_antal
         availability: "{{ value_json.ny_hamtad is defined and value_json.ny_hamtad is not none }}"
@@ -320,13 +321,14 @@ rest:
         json_attributes:
           - ny_hamtad
           - ny_data_fran
+          - ny_totalt
           - ny_senaste_reg
 
       # Högsta löpnumret i New York. Registrerad, så bilen var byggd före
       # datumet.
       - name: "EX60 New York högsta löpnummer"
         unique_id: ex60_new_york_hogsta_lopnummer
-        availability: "{{ value_json.ny_hogsta is defined and value_json.ny_hogsta is not none }}"
+        availability: "{{ value_json.ny_hogsta is defined and value_json.ny_hogsta is not none and value_json.ny_hogsta.lopnummer is not none }}"
         value_template: "{{ value_json.ny_hogsta.lopnummer | int(0) }}"
         state_class: measurement
         icon: mdi:numeric
