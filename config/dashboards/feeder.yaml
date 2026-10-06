@@ -742,9 +742,10 @@ views:
               {% endif %}
 
       # --- 3. USA -------------------------------------------------------------
-      # Lagret hos de handlare på Dealer.com som Pi:n går igenom på söndagar.
-      # Inga registreringar som i Europa, utan bilar till salu eller på väg,
-      # så avdelningen hålls skild från länderna ovan.
+      # Lagret hos de handlare på Dealer.com som Pi:n går igenom på söndagar,
+      # bilar till salu eller på väg, och New Yorks fordonsregister. Ingen
+      # nationell registreringsstatistik som i Europa, så avdelningen hålls
+      # skild från länderna ovan.
       # Rutorna döljs tills det finns en lyckad körning; texten under säger
       # då varför det saknas siffror.
       - type: grid
@@ -785,6 +786,25 @@ views:
               <sub>Ett urval handlare, inte hela USA. Löpnumren säger att bilen fanns där, inte när den byggdes.</sub>
               {% elif not sparr %}
               Ingen körning mot de amerikanska handlarna än. Den går söndagar kl. 10.
+              {% endif %}
+
+              {% set n = 'sensor.ex60_i_new_york' %}
+              {% set nh = 'sensor.ex60_new_york_hogsta_lopnummer' %}
+              {% if has_value(n) %}
+              {% set d = state_attr(n, 'ny_data_fran') %}
+              {% set hamtad = as_timestamp(state_attr(n, 'ny_hamtad'), 0) %}
+              {% set senast = as_timestamp(state_attr(n, 'ny_senaste_reg'), none) %}
+              {% set reg = as_timestamp(state_attr(nh, 'registrerad'), none) %}
+              {% if as_timestamp(now()) - hamtad > 2 * 86400 %}
+              ⚠️ New Yorks register har inte gått att hämta sedan {{ hamtad | timestamp_custom('%-d/%-m') }}. Siffrorna nedan är från då.
+
+              {% endif %}
+              {% if states(n) | int(0) > 0 %}
+              **{{ states(n) }} EX60** i New Yorks fordonsregister{% if senast %}, senast registrerad {{ senast | timestamp_custom('%-d/%-m') }}{% endif %}{% if has_value(nh) %}, högsta löpnummer #{{ '%06d' | format(states(nh) | int) }}{% if reg %} (registrerad {{ reg | timestamp_custom('%-d/%-m') }}){% endif %}{% endif %}.
+              {% else %}
+              Inga EX60 i New Yorks fordonsregister än.
+              {% endif %}
+              <sub>DMV:s öppna data{% if d %}, uppdaterad {{ as_timestamp(d) | timestamp_custom('%-d/%-m') }}{% endif %}. Hela delstaten med fullständigt VIN.</sub>
               {% endif %}
 
       # --- 4. Detaljer --------------------------------------------------------
