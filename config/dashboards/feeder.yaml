@@ -558,6 +558,7 @@ views:
   # reg_per_manad från Pi:n och byts aldrig, så ett land har alltid samma
   # färg:
   #   SE #3987e5  NO #d95926  DK #199e70  FI #c98500  NL #d55181  DE #008300
+  #   ES #9085e9 (palettens sjunde steg; alla sju validerade på nytt)
   # Identitet bärs aldrig av färgen ensam: diagrammen har förklaring och
   # tabellen under visar samma siffror.
   - title: EX60
@@ -705,6 +706,13 @@ views:
                     data_generator: |
                       const m = entity.attributes.reg_manader || [];
                       const v = (entity.attributes.reg_per_manad || {}).DE || [];
+                      return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+                  - entity: sensor.ex60_registreringar_i_europa
+                    name: Spanien
+                    color: '#9085e9'
+                    data_generator: |
+                      const m = entity.attributes.reg_manader || [];
+                      const v = (entity.attributes.reg_per_manad || {}).ES || [];
                       return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
 
           # Samma siffror som tabell, med samma kolumner för alla länder: senaste
@@ -861,6 +869,12 @@ views:
                 data_generator: |
                   return (entity.attributes.nl_per_dag || []).map(d =>
                     [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
+              - entity: sensor.ex60_i_spanien
+                name: Spanien
+                color: '#9085e9'
+                data_generator: |
+                  return (entity.attributes.es_per_dag || []).map(d =>
+                    [new Date(d.dag + 'T12:00:00').getTime(), d.antal]);
 
           - type: markdown
             grid_options:
@@ -889,5 +903,5 @@ views:
               Norge elbilstatistikk.no, dagligen. Danmark Skattestyrelsens
               motorregister, veckovis. Finland Traficom, månadsvis.
               Nederländerna RDW öppen data, dagligen. Tyskland KBA FZ 10,
-              månadsvis. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
+              månadsvis. Spanien DGT öppen data, dagligen. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
               löpnummersidan.</sub>
