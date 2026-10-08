@@ -569,8 +569,9 @@ views:
     sections:
 
       # --- 1. Produktion --------------------------------------------------------
-      # Fyra siffror i rutor (två och två på mobil), och slutsatsen i
-      # klartext under, med förbehållet om hur få punkter takten vilar på.
+      # Fyra siffror i rutor (två och två på mobil), två till ur de danska
+      # bilarna, och slutsatsen i klartext under, med förbehållet om hur få
+      # punkter takten vilar på och vilken ledtid den danska antar.
       - type: grid
         cards:
           - type: heading
@@ -595,12 +596,23 @@ views:
             entity: sensor.ex60_kravs_per_dag_for_malet
             name: Krävs för målet
             vertical: true
+          - type: tile
+            entity: sensor.ex60_takt_ur_danmark
+            name: Takt ur Danmark
+            vertical: true
+          - type: tile
+            entity: sensor.ex60_uppskattat_lopnummer_ur_danmark
+            icon: mdi:chart-timeline-variant
+            name: Uppskattat ur Danmark
+            vertical: true
           - type: markdown
             content: |
               {% set h = 'sensor.ex60_hogsta_kanda_lopnummer' %}
               {% set t = 'sensor.ex60_takt_nu' %}
               {% set u = 'sensor.ex60_uppskattat_lopnummer_i_dag' %}
               {% set k = 'sensor.ex60_kravs_per_dag_for_malet' %}
+              {% set dt = 'sensor.ex60_takt_ur_danmark' %}
+              {% set du = 'sensor.ex60_uppskattat_lopnummer_ur_danmark' %}
               {% set bad = ['unknown', 'unavailable'] %}
               {% if states(t) not in bad %}
               Torslanda bygger ≈ **{{ states(t) | round(0) | int }} EX60 per dag**, räknat ur {{ state_attr(t, 'lopnr_takt_punkter') }} bilar med känt byggdatum{% if state_attr(u, 'lopnr_framskrivet_fran') %} (senast {{ as_timestamp(state_attr(u, 'lopnr_framskrivet_fran')) | timestamp_custom('%-d/%-m') }}){% endif %}.
@@ -609,6 +621,9 @@ views:
               {% endif %}
               {% if states(k) not in bad %}
               Målet {{ '{:,}'.format(state_attr(k, 'lopnr_mal') or 40000).replace(',', ' ') }} i år kräver ≈ **{{ states(k) }} per dag**{% if state_attr(k, 'lopnr_kravs_ganger_takten') %}, {{ state_attr(k, 'lopnr_kravs_ganger_takten') | replace('.', ',') }} × dagens takt{% endif %}.
+              {% endif %}
+              {% if states(dt) not in bad %}
+              Ur de danska bilarnas inläggningsdag ({{ state_attr(dt, 'lopnr_dk_takt_punkter') }} dagar {{ as_timestamp(state_attr(dt, 'lopnr_dk_takt_fran')) | timestamp_custom('%-d/%-m') }}–{{ as_timestamp(state_attr(dt, 'lopnr_dk_takt_till')) | timestamp_custom('%-d/%-m') }}) blir takten ≈ **{{ states(dt) | round(0) | int }} per dag**{% if states(du) not in bad %}. Med {{ state_attr(du, 'lopnr_dk_ledtid_dagar') }} dagars antagen ledtid till Danmark är löpnumret ≈ #{{ '%06d' | format(states(du) | int) }} i dag, och målet kräver ≈ **{{ state_attr(du, 'lopnr_dk_kravs_per_dag') }} per dag**{% if state_attr(du, 'lopnr_dk_kravs_ganger_takten') %}, {{ state_attr(du, 'lopnr_dk_kravs_ganger_takten') | replace('.', ',') }} × den takten{% endif %}{% endif %}.
               {% endif %}
               {% if states(h) not in bad %}
               Högsta kända löpnummer är #{{ '%06d' | format(states(h) | int) }} ({{ state_attr(h, 'typ') or '' }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (', ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }}).
