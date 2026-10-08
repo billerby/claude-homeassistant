@@ -245,6 +245,9 @@ rest:
         icon: mdi:speedometer
         json_attributes:
           - lopnr_takt_punkter
+          - lopnr_andel_av_plan
+          - lopnr_plan_per_dag
+          - lopnr_plan_start
 
       - name: "EX60 uppskattat löpnummer i dag"
         unique_id: ex60_uppskattat_lopnummer_i_dag
@@ -282,6 +285,9 @@ rest:
           - lopnr_dk_takt_fran
           - lopnr_dk_takt_till
           - lopnr_dk_ledtid_dagar
+          - lopnr_dk_andel_av_plan
+          - lopnr_plan_per_dag
+          - lopnr_plan_start
 
       - name: "EX60 uppskattat löpnummer ur Danmark"
         unique_id: ex60_uppskattat_lopnummer_ur_danmark
