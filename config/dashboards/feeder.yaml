@@ -766,7 +766,8 @@ views:
           # hela månaden (jämförbar för alla) och innevarande månad hittills.
           # Streck betyder att siffran inte är publicerad än (Finland och
           # Tyskland ligger en månad efter), inte att den är noll. Månaderna
-          # följer reg_manader från Pi:n och byts automatiskt.
+          # följer reg_manader från Pi:n och byts automatiskt. Storbritannien
+          # har bara kvartal: streck i månadskolumnerna och "kv 2" som datum.
           - type: markdown
             grid_options:
               columns: full
@@ -778,7 +779,9 @@ views:
               {% set mon = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'] %}
               {% macro mname(m) %}{{ mon[(m[5:7] | int) - 1] }}{% endmacro %}
               {% macro dag(d) -%}
-              {%- if d | length == 10 -%}{{ d[8:10] | int }}/{{ d[5:7] | int }}{%- else -%}{{ mname(d) }}{%- endif -%}
+              {%- if d | length == 10 -%}{{ d[8:10] | int }}/{{ d[5:7] | int }}
+              {%- elif 'Q' in d -%}kv {{ d[-1] }}
+              {%- else -%}{{ mname(d) }}{%- endif -%}
               {%- endmacro %}
               {% macro val(v) %}{{ v if v is not none else '–' }}{% endmacro %}
               {% if rows and months | length >= 2 %}
