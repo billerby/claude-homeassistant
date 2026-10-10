@@ -559,6 +559,13 @@ views:
   # färg:
   #   SE #3987e5  NO #d95926  DK #199e70  FI #c98500  NL #d55181  DE #008300
   #   ES #9085e9 (palettens sjunde steg; alla sju validerade på nytt)
+  #   CH #e66767 (palettens åttonde och sista steg)
+  #   Övriga #a8a7a0: EE, LU, IE, LV, CZ och GR summerade. Paletten har
+  #   åtta steg; fler länder slås ihop i stället för att färger hittas på.
+  #   Gråtonen har kontrast 7:1 mot kortytan och ΔE ≥ 11 mot alla åtta,
+  #   också vid färgblindhet. CH mot NL är 7,9 vid tritanopi, i
+  #   varningsbandet, och bärs därför av förklaringen och tabellen.
+  #   Tabellen visar alla länder var för sig.
   # Identitet bärs aldrig av färgen ensam: diagrammen har förklaring och
   # tabellen under visar samma siffror.
   - title: EX60
@@ -654,7 +661,7 @@ views:
               - type: custom:apexcharts-card
                 # Juni 2026 - första månaden med EX60 - till innevarande månad.
                 # Vidga när fler månader tillkommer.
-                graph_span: 4month
+                graph_span: 5month
                 span:
                   end: month
                 header:
@@ -733,6 +740,27 @@ views:
                       const m = entity.attributes.reg_manader || [];
                       const v = (entity.attributes.reg_per_manad || {}).ES || [];
                       return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+                  - entity: sensor.ex60_registreringar_i_europa
+                    name: Schweiz
+                    color: '#e66767'
+                    data_generator: |
+                      const m = entity.attributes.reg_manader || [];
+                      const v = (entity.attributes.reg_per_manad || {}).CH || [];
+                      return m.map((x, i) => [new Date(x + '-15T12:00:00').getTime(), v[i] ?? null]);
+                  # Summan av de länder som publicerat månaden; ingen stapel
+                  # när inget av dem har gjort det. Storbritannien har bara
+                  # kvartal och finns bara i tabellen.
+                  - entity: sensor.ex60_registreringar_i_europa
+                    name: Övriga
+                    color: '#a8a7a0'
+                    data_generator: |
+                      const m = entity.attributes.reg_manader || [];
+                      const r = entity.attributes.reg_per_manad || {};
+                      const lands = ['EE', 'LU', 'IE', 'LV', 'CZ', 'GR'];
+                      return m.map((x, i) => {
+                        const v = lands.map(l => (r[l] || [])[i]).filter(n => n !== null && n !== undefined);
+                        return [new Date(x + '-15T12:00:00').getTime(), v.length ? v.reduce((a, b) => a + b, 0) : null];
+                      });
 
           # Samma siffror som tabell, med samma kolumner för alla länder: senaste
           # hela månaden (jämförbar för alla) och innevarande månad hittills.
@@ -922,5 +950,9 @@ views:
               Norge elbilstatistikk.no, dagligen. Danmark Skattestyrelsens
               motorregister, veckovis. Finland Traficom, månadsvis.
               Nederländerna RDW öppen data, dagligen. Tyskland KBA FZ 10,
-              månadsvis. Spanien DGT öppen data, dagligen. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
+              månadsvis. Spanien DGT öppen data, dagligen. Estland
+              Transpordiamet, dagligen. Luxemburg SNCA, månadsvis. Irland SIMI,
+              dagligen. Lettland CSDD, månadsvis. Storbritannien DfT VEH0160,
+              kvartalsvis. Schweiz ASTRA, månadsvis. Tjeckien fordonsregistrets
+              utdrag, månadsvis. Grekland SEAA, månadsvis. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
               löpnummersidan.</sub>
