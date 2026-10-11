@@ -8,6 +8,8 @@ config/secrets.yaml
 # committed template is teslamate-bridge.conf.example with remote_password CHANGE_ME.
 config/mosquitto/teslamate-bridge.conf
 config/.storage/
+# Leftovers from add-on migrations (evcc.yaml.migrated held a Tibber token)
+config/*.migrated
 config/home-assistant.log*
 config/OZW_Log.txt
 config/ip_bans.yaml
