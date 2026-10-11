@@ -300,6 +300,20 @@ rest:
           - lopnr_dk_kravs_per_dag
           - lopnr_dk_kravs_ganger_takten
 
+      # Vad målet kräver per dag räknat från det danska uppskattade
+      # löpnumret. Egen sensor för rutan i produktionskortet, som visar
+      # den danska takten först: den ur byggdatum saknas oftast.
+      - name: "EX60 krävs per dag ur Danmark"
+        unique_id: ex60_kravs_per_dag_ur_danmark
+        availability: "{{ value_json.lopnr_dk_kravs_per_dag is defined and value_json.lopnr_dk_kravs_per_dag is not none }}"
+        value_template: "{{ value_json.lopnr_dk_kravs_per_dag | int(0) }}"
+        unit_of_measurement: "bilar/dag"
+        state_class: measurement
+        icon: mdi:flag-checkered
+        json_attributes:
+          - lopnr_mal
+          - lopnr_dk_kravs_ganger_takten
+
       # EX60 i amerikanska handlares lager, från Dealer.com-sidorna för
       # handlarna i usa-handlare.txt på Pi:n. Körs söndagar, så värdet är
       # en vecka gammalt som mest. I lager inkluderar bilar på väg dit.
