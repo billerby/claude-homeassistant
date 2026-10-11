@@ -455,13 +455,29 @@ rest:
           - de_totalt
           - de_per_manad
 
+      # EX60 i Nya Zeeland enligt NZTA:s fordonsregister, nya bilar per
+      # månad för första registrering. Registret kommer omkring den sjätte
+      # med månaden före; de första EX60 levereras i november 2026, så
+      # noll före det är inget fel. Ingen hel VIN, så inga löpnummer.
+      - name: "EX60 i Nya Zeeland"
+        unique_id: ex60_nya_zeeland
+        availability: "{{ value_json.nz_senaste_manad is defined and value_json.nz_senaste_manad is not none }}"
+        value_template: "{{ value_json.nz_senaste_antal | int(0) }}"
+        unit_of_measurement: "bilar"
+        state_class: measurement
+        icon: mdi:car-electric-outline
+        json_attributes:
+          - nz_senaste_manad
+          - nz_totalt
+
       # Alla länders registreringar per månad i samma form, och en tabellrad
       # per land. Underlag för EX60-flikens jämförelse mellan länder.
-      # Tillståndet är summan av ländernas totaler.
+      # Tillståndet är summan av de europeiska ländernas totaler; Nya
+      # Zeeland finns i attributen men visas under Utanför Europa.
       - name: "EX60 registreringar i Europa"
         unique_id: ex60_registreringar_europa
         availability: "{{ value_json.reg_tabell is defined and value_json.reg_tabell | length > 0 }}"
-        value_template: "{{ value_json.reg_tabell | map(attribute='totalt') | sum }}"
+        value_template: "{{ value_json.reg_tabell | rejectattr('land', 'in', ['NZ']) | map(attribute='totalt') | sum }}"
         unit_of_measurement: "bilar"
         state_class: total
         icon: mdi:earth

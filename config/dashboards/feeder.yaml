@@ -547,7 +547,7 @@ views:
   # Fyra avdelningar, en fråga var, i den ordning de ska läsas:
   #   1. Produktion: hur fort bygger Torslanda? (löpnummer ur VIN)
   #   2. Leveranser i Europa: hur går registreringarna, land mot land?
-  #   3. USA: hur många står hos de amerikanska handlarna?
+  #   3. Utanför Europa: amerikanska handlare, New York och Nya Zeeland.
   #   4. Detaljer: dagsserier, danska löpnummer och källor.
   # Avdelningsvy (type: sections) i stället för masonry, så att ordningen
   # och avdelningarna hålls ihop på både dator och mobil.
@@ -562,7 +562,8 @@ views:
   #   CH #e66767 (palettens åttonde och sista steg)
   #   Övriga #a8a7a0: alla övriga länder i reg_per_manad summerade (i dag
   #   EE, LU, IE, LV, CZ och GR). Paletten har åtta steg; fler länder slås
-  #   ihop i stället för att färger hittas på.
+  #   ihop i stället för att färger hittas på. Nya Zeeland står också i
+  #   reg_per_manad men räknas inte hit, utan visas under Utanför Europa.
   #   Gråtonen har kontrast 7:1 mot kortytan och ΔE ≥ 11 mot alla åtta,
   #   också vid färgblindhet. CH mot NL är 7,9 vid tritanopi, i
   #   varningsbandet, och bärs därför av förklaringen och tabellen.
@@ -755,6 +756,7 @@ views:
                   # hellre än en delsumma som växer i efterhand. Ett land utan
                   # någon data alls (före första hämtningen) räknas inte.
                   # Storbritannien har bara kvartal och finns bara i tabellen.
+                  # Länderna utanför Europa (Nya Zeeland) räknas inte.
                   - entity: sensor.ex60_registreringar_i_europa
                     name: Övriga
                     color: '#a8a7a0'
@@ -762,7 +764,8 @@ views:
                       const m = entity.attributes.reg_manader || [];
                       const r = entity.attributes.reg_per_manad || {};
                       const named = ['SE', 'NO', 'DK', 'FI', 'NL', 'DE', 'ES', 'CH'];
-                      const lands = Object.keys(r).filter(l => !named.includes(l)
+                      const outside = ['NZ'];
+                      const lands = Object.keys(r).filter(l => !named.includes(l) && !outside.includes(l)
                         && (r[l] || []).some(n => n !== null && n !== undefined));
                       return m.map((x, i) => {
                         const v = lands.map(l => r[l][i]);
@@ -783,7 +786,7 @@ views:
               columns: full
             content: |
               {% set e = 'sensor.ex60_registreringar_i_europa' %}
-              {% set rows = state_attr(e, 'reg_tabell') or [] %}
+              {% set rows = (state_attr(e, 'reg_tabell') or []) | rejectattr('land', 'in', ['NZ']) | list %}
               {% set months = state_attr(e, 'reg_manader') or [] %}
               {% set series = state_attr(e, 'reg_per_manad') or {} %}
               {% set mon = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'] %}
@@ -810,17 +813,18 @@ views:
               Inga registreringsdata än.
               {% endif %}
 
-      # --- 3. USA -------------------------------------------------------------
+      # --- 3. Utanför Europa ---------------------------------------------------
       # Lagret hos de handlare på Dealer.com som Pi:n går igenom på söndagar,
-      # bilar till salu eller på väg, och New Yorks fordonsregister. Ingen
-      # nationell registreringsstatistik som i Europa, så avdelningen hålls
-      # skild från länderna ovan.
+      # bilar till salu eller på väg, New Yorks fordonsregister och Nya
+      # Zeelands. Inte jämförbart med länderna ovan (ett urval handlare, en
+      # delstat), så avdelningen hålls skild från dem; Nya Zeeland står här
+      # för att Europas diagram och tabell bara har europeiska länder.
       # Rutorna döljs tills det finns en lyckad körning; texten under säger
       # då varför det saknas siffror.
       - type: grid
         cards:
           - type: heading
-            heading: USA
+            heading: Utanför Europa
             heading_style: title
             icon: mdi:flag-variant
           - type: tile
@@ -832,10 +836,17 @@ views:
                 state_not: unavailable
           - type: tile
             entity: sensor.ex60_usa_hogsta_lopnummer
-            name: Högsta löpnummer
+            name: Högsta löpnummer USA
             visibility:
               - condition: state
                 entity: sensor.ex60_usa_hogsta_lopnummer
+                state_not: unavailable
+          - type: tile
+            entity: sensor.ex60_i_nya_zeeland
+            name: Nya Zeeland
+            visibility:
+              - condition: state
+                entity: sensor.ex60_i_nya_zeeland
                 state_not: unavailable
           - type: markdown
             grid_options:
@@ -874,6 +885,19 @@ views:
               Inga EX60 i New Yorks fordonsregister än.
               {% endif %}
               <sub>DMV:s öppna data{% if d %}, uppdaterad {{ as_timestamp(d) | timestamp_custom('%-d/%-m') }}{% endif %}. Hela delstaten med fullständigt VIN.</sub>
+              {% endif %}
+
+              {% set z = 'sensor.ex60_i_nya_zeeland' %}
+              {% if has_value(z) %}
+              {% set zm = state_attr(z, 'nz_senaste_manad') %}
+              {% set mon = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'] %}
+              {% set zn = zm[5:7] | int(0) if zm is string else 0 %}
+              {% if state_attr(z, 'nz_totalt') | int(0) > 0 %}
+              **{{ states(z) }} EX60** registrerade i Nya Zeeland i {{ mon[zn - 1] if 1 <= zn <= 12 else '–' }}, {{ state_attr(z, 'nz_totalt') }} sammanlagt.
+              {% else %}
+              Inga EX60 i Nya Zeelands fordonsregister till och med {{ mon[zn - 1] if 1 <= zn <= 12 else '–' }}. De första levereras i november 2026.
+              {% endif %}
+              <sub>NZTA:s öppna data, nya bilar per månad för första registrering, omkring den sjätte med månaden före.</sub>
               {% endif %}
 
       # --- 4. Detaljer --------------------------------------------------------
@@ -969,5 +993,5 @@ views:
               månadsvis. Irland SIMI, per månad, uppdaterad dagligen. Lettland
               CSDD, månadsvis. Storbritannien DfT VEH0160, kvartalsvis. Schweiz
               ASTRA, månadsvis. Tjeckien fordonsregistrets utdrag, per dag,
-              utdrag varje månad. Grekland SEAA, månadsvis. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
+              utdrag varje månad. Grekland SEAA, månadsvis. Nya Zeeland NZTA:s fordonsregister, månadsvis. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
               löpnummersidan.</sub>
