@@ -15,6 +15,9 @@ custom_icons/
 themes/
 
 # Runtime/cache directories
+# .cache/ holds brand icons HA downloads itself; a pull brings it along, and
+# pushing it back would overwrite or delete what HA has fetched since.
+.cache/
 .cloud/
 deps/
 tts/

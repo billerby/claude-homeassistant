@@ -5,11 +5,11 @@
 # ingen integration, inget tillägg och inga inloggningsuppgifter behövs.
 #
 # Källor:
-#   http://192.168.1.111/readsb/stats.json       readsb: brus, avkodning, signal
-#   http://192.168.1.111/readsb/tracked.json     VILKA flygplan och fartyg
-#   http://192.168.1.111/readsb/unique.json      unika flygplan per dygn/månad
-#   http://192.168.1.111:8754/monitor.json       fr24feed: länken till FR24
-#   http://192.168.1.111:8100/api/stat.json      AIS-catcher: statistik
+#   http://192.168.1.21/readsb/stats.json       readsb: brus, avkodning, signal
+#   http://192.168.1.21/readsb/tracked.json     VILKA flygplan och fartyg
+#   http://192.168.1.21/readsb/unique.json      unika flygplan per dygn/månad
+#   http://192.168.1.21:8754/monitor.json       fr24feed: länken till FR24
+#   http://192.168.1.21:8100/api/stat.json      AIS-catcher: statistik
 #
 # Adressen är WiFi-gränssnittet (Fixed IP i UniFi mot 88:a2:9e:fe:66:46).
 # Pi:n har även 192.168.1.21 på eth0, men nätverkskabeln sitter inte alltid i.
@@ -31,7 +31,7 @@
 
 rest:
   # --- readsb: mottagarhälsa och avkodning ----------------------------------
-  - resource: http://192.168.1.111/readsb/stats.json
+  - resource: http://192.168.1.21/readsb/stats.json
     scan_interval: 60
     timeout: 10
     sensor:
@@ -89,7 +89,7 @@ rest:
   # Räknarna och listorna är skilda entiteter med flit, se kommentaren vid
   # "Flygplanslista". Listorna ligger i attributet `list`, sorterade med det
   # närmaste först, och är undantagna i recorder — se configuration.yaml.
-  - resource: http://192.168.1.111/readsb/tracked.json
+  - resource: http://192.168.1.21/readsb/tracked.json
     scan_interval: 30
     timeout: 10
     sensor:
@@ -161,7 +161,7 @@ rest:
         icon: mdi:format-list-bulleted
 
   # --- Flightradar24-länken ---------------------------------------------------
-  - resource: http://192.168.1.111:8754/monitor.json
+  - resource: http://192.168.1.21:8754/monitor.json
     scan_interval: 60
     timeout: 10
     sensor:
@@ -187,7 +187,7 @@ rest:
         device_class: connectivity
 
   # --- AIS ---------------------------------------------------------------------
-  - resource: http://192.168.1.111:8100/api/stat.json
+  - resource: http://192.168.1.21:8100/api/stat.json
     scan_interval: 60
     timeout: 10
     sensor:
@@ -233,7 +233,7 @@ rest:
   #
   # Bara ICAO-adressen identifierar ett flygplan, och unionen av adresser över
   # ett dygn är det enda som ger rätt tal.
-  - resource: http://192.168.1.111/readsb/unique.json
+  - resource: http://192.168.1.21/readsb/unique.json
     scan_interval: 60
     timeout: 10
     sensor:

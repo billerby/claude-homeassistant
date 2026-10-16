@@ -6,7 +6,7 @@
 # cassetter går på Älvsborgshamnen och räknas därför inte.
 #
 # Källa:
-#   http://192.168.1.111/bilhamnen/bilhamnen.json    anlöp, liggtid, ETA
+#   http://192.168.1.21/bilhamnen/bilhamnen.json    anlöp, liggtid, ETA
 #
 # Pi:n hämtar hamnens eget API var femtonde minut och håller historiken i
 # SQLite. Se ~/project/bilhamnen. Ingen AIS-mottagning inblandad — antennen
@@ -26,7 +26,7 @@
 # =============================================================================
 
 rest:
-  - resource: http://192.168.1.111/bilhamnen/bilhamnen.json
+  - resource: http://192.168.1.21/bilhamnen/bilhamnen.json
     scan_interval: 900
     timeout: 15
     sensor:
