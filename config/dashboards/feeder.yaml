@@ -1011,3 +1011,53 @@ views:
               ASTRA, månadsvis. Tjeckien fordonsregistrets utdrag, per dag,
               utdrag varje månad. Grekland SEAA, månadsvis. Nya Zeeland NZTA:s fordonsregister, månadsvis. USA handlarnas lagersidor på Dealer.com, veckovis. Löpnummer och produktionstakt från punkterna på
               löpnummersidan.</sub>
+
+  # Den egna beställningen, ur sensor.ex60_min_order. Statusen som Volvo
+  # skriver den, leveransuppgiften och, när ett VIN finns, var löpnumret
+  # ligger mot den uppskattade framkanten. Historiken visar varje ändring.
+  # Ingen länk till ordersidan: repot är publikt och länken innehåller
+  # ordernumret.
+  - title: EX60-order
+    path: ex60-order
+    icon: mdi:clipboard-text-clock
+    cards:
+      - type: markdown
+        title: Min EX60
+        content: |
+          {% set e = 'sensor.ex60_min_order' %}
+          {% if states(e) in ['unavailable', 'unknown'] %}
+          Ingen avläsning av beställningen än.
+          {% else %}
+          **{{ state_attr(e, 'order_rubrik') or 'Status' }}:** {{ state_attr(e, 'order_status') or '–' }}
+
+          | | |
+          |:--|:--|
+          | Leverans | {{ state_attr(e, 'order_leverans') or 'inte planerad' }} |
+          | Handlare | {{ state_attr(e, 'order_handlare') or '–' }} |
+          {% set nr = state_attr(e, 'order_lopnummer') -%}
+          {% set fram = states('sensor.ex60_uppskattat_lopnummer_ur_danmark') -%}
+          {% if nr -%}
+          | Löpnummer | #{{ '%06d' | format(nr) }} |
+          {% if fram not in ['unavailable', 'unknown'] -%}
+          | Mot framkanten | {{ nr - fram | int }} kvar ({{ fram }} i dag) |
+          {% endif -%}
+          {% endif -%}
+          | Senast ändrad | {{ as_timestamp(states(e)) | timestamp_custom('%-d/%-m %H:%M') }} |
+          | Senast hämtad | {{ as_timestamp(state_attr(e, 'order_hamtad')) | timestamp_custom('%-d/%-m %H:%M') if state_attr(e, 'order_hamtad') else '–' }} |
+          {% endif %}
+
+      - type: markdown
+        title: Ändringar
+        content: |
+          {% set h = state_attr('sensor.ex60_min_order', 'order_historik') %}
+          {% if h %}
+          | När | Status | Leverans |
+          |:--|:--|:--|
+          {% for r in h -%}
+          | {{ as_timestamp(r.tid) | timestamp_custom('%-d/%-m %H:%M') }} | {{ r.status or '–' }} | {{ r.leverans or '–' }} |
+          {% endfor %}
+          <sub>Den första raden är den första avläsningen; bilhamnen frågar
+          var tredje timme.</sub>
+          {% else %}
+          Ingen historik än.
+          {% endif %}
