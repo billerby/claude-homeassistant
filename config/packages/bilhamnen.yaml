@@ -236,6 +236,19 @@ rest:
           - datum
           - land
 
+      # Högsta löpnummer med tilldelat VIN: planerat i produktionen, inte
+      # nödvändigtvis byggt, så det räknas inte till högsta kända.
+      - name: "EX60 högsta tilldelade VIN"
+        unique_id: ex60_hogsta_tilldelade_vin
+        availability: "{{ value_json.lopnr_vin_tilldelat is defined and value_json.lopnr_vin_tilldelat is not none }}"
+        value_template: "{{ value_json.lopnr_vin_tilldelat.lopnummer | int(0) }}"
+        state_class: measurement
+        icon: mdi:barcode-scan
+        json_attributes_path: "$.lopnr_vin_tilldelat"
+        json_attributes:
+          - datum
+          - land
+
       - name: "EX60 takt nu"
         unique_id: ex60_takt_nu
         availability: "{{ value_json.lopnr_takt_per_dag is defined and value_json.lopnr_takt_per_dag is not none }}"

@@ -584,7 +584,8 @@ views:
       # förbehållet om vilken ledtid den danska antar. Takten ur byggdatum
       # har egna rutor som bara visas när bilhamnen skriver den: bilarna med
       # känt byggdatum ska spänna över minst en vecka och den senaste vara
-      # högst tre veckor gammal, och det är de sällan.
+      # högst tre veckor gammal, och det är de sällan. Högsta tilldelade VIN
+      # står bara i texten: det är planerat, inte byggt.
       - type: grid
         cards:
           - type: heading
@@ -656,6 +657,10 @@ views:
               Planen, 40 000 under året från produktionsstarten {{ as_timestamp(state_attr(dt, 'lopnr_plan_start') or state_attr(t, 'lopnr_plan_start')) | timestamp_custom('%-d/%-m') }}, motsvarar ≈ **{{ pl | round(0) | int }} per dag**{% if state_attr(dt, 'lopnr_dk_andel_av_plan') %}. Den danska takten är **{{ state_attr(dt, 'lopnr_dk_andel_av_plan') }} %** av det{% endif %}{% if state_attr(t, 'lopnr_andel_av_plan') %}, takten ur byggdatum {{ state_attr(t, 'lopnr_andel_av_plan') }} %{% endif %}.
               {% endif %}
               Högsta kända löpnummer är #{{ '%06d' | format(states(h) | int) }} ({{ state_attr(h, 'typ') or '' }} {{ as_timestamp(state_attr(h, 'datum')) | timestamp_custom('%-d/%-m') if state_attr(h, 'datum') else '' }}{{ (', ' ~ state_attr(h, 'land')) if state_attr(h, 'land') else '' }}).
+              {% set v = 'sensor.ex60_hogsta_tilldelade_vin' %}
+              {% if states(v) not in bad %}
+              Högsta löpnummer med tilldelat VIN är #{{ '%06d' | format(states(v) | int) }}{% if state_attr(v, 'datum') %} ({{ as_timestamp(state_attr(v, 'datum')) | timestamp_custom('%-d/%-m') }}{{ (', ' ~ state_attr(v, 'land')) if state_attr(v, 'land') else '' }}){% endif %}: planerat i produktionen, inte nödvändigtvis byggt.
+              {% endif %}
               {% endif %}
 
       # --- 2. Leveranser i Europa ---------------------------------------------
