@@ -500,6 +500,63 @@ rest:
           - reg_per_manad
           - reg_tabell
 
+      # Den egna EX60-beställningen, ur samma API som Volvos leveranssida.
+      # bilhamnen frågar var tredje timme och sparar svaret när det ändrats.
+      # Tillståndet är när svaret senast ändrades, så att en ändring syns som
+      # ett nytt tillstånd och automationen nedan kan reagera på det.
+      # Ordernumret står i /etc/default/bilhamnen på Pi:n, inte här.
+      - name: "EX60 min order"
+        unique_id: ex60_min_order
+        availability: "{{ value_json.order_andrad is defined and value_json.order_andrad is not none }}"
+        value_template: "{{ value_json.order_andrad }}"
+        device_class: timestamp
+        icon: mdi:clipboard-text-clock
+        json_attributes:
+          - order_status
+          - order_rubrik
+          - order_leverans
+          - order_andring
+          - order_bil
+          - order_handlare
+          - order_vin
+          - order_lopnummer
+          - order_hamtad
+          - order_historik
+
+automation:
+  # Notis när Volvos svar om beställningen ändras. Från unavailable eller
+  # unknown räknas inte: då har HA startat om eller Pi:n inte svarat, och
+  # ordern är densamma.
+  - id: ex60_min_order_andrad
+    alias: "EX60: beställningen har ändrats"
+    mode: queued
+    trigger:
+      - platform: state
+        entity_id: sensor.ex60_min_order
+    condition:
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unavailable', 'unknown']
+             and trigger.to_state.state not in ['unavailable', 'unknown'] }}
+    action:
+      - variables:
+          meddelande: >-
+            {{ state_attr('sensor.ex60_min_order', 'order_status') or 'Ingen statustext.' }}
+            {%- set lev = state_attr('sensor.ex60_min_order', 'order_leverans') %}
+            {%- if lev %} Leverans: {{ lev }}.{% endif %}
+            {%- set nr = state_attr('sensor.ex60_min_order', 'order_lopnummer') %}
+            {%- if nr %} Löpnummer {{ nr }}.{% endif %}
+      - service: notify.mobile_app_pixel_9
+        data:
+          title: "EX60: beställningen har ändrats"
+          message: "{{ meddelande }}"
+      - service: persistent_notification.create
+        data:
+          notification_id: ex60_min_order
+          title: "EX60: beställningen har ändrats"
+          message: "{{ meddelande }}"
+
 template:
   - sensor:
       # Namnet på nästa båt som egen sensor, så att kort och notiser slipper
