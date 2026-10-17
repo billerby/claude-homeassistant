@@ -134,10 +134,9 @@
       minutes: 0
       seconds: 0
   action:
-  - type: turn_off
-    device_id: f6934d07a9dc338f48993a099de68d39
-    entity_id: switch.bastu_och_tvattstall_channel_1
-    domain: switch
+  - action: switch.turn_off
+    target:
+      entity_id: switch.bastu_och_tvattstall_channel_1
   mode: single
 - id: '1689410124853'
   alias: Högt vattenuttag
