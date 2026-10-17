@@ -540,18 +540,26 @@ automation:
   # Notis när Volvos svar om beställningen ändras. Från unavailable eller
   # unknown räknas inte: då har HA startat om eller Pi:n inte svarat, och
   # ordern är densamma.
+  #
+  # `to: null` gör att bara tillståndet räknas, inte attributen. Utan den
+  # löste automationen ut vid varje hämtning, var tredje timme, eftersom
+  # attributet order_hamtad ändras då (16-17 oktober 2026). Villkoret att
+  # tillståndet faktiskt bytt värde är samma sak sagt två gånger, så att det
+  # inte hänger på att den egenheten i state-triggern finns kvar.
   - id: ex60_min_order_andrad
     alias: "EX60: beställningen har ändrats"
     mode: queued
     trigger:
       - platform: state
         entity_id: sensor.ex60_min_order
+        to: null
     condition:
       - condition: template
         value_template: >-
           {{ trigger.from_state is not none
              and trigger.from_state.state not in ['unavailable', 'unknown']
-             and trigger.to_state.state not in ['unavailable', 'unknown'] }}
+             and trigger.to_state.state not in ['unavailable', 'unknown']
+             and trigger.from_state.state != trigger.to_state.state }}
     action:
       - variables:
           meddelande: >-
